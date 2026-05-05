@@ -27,6 +27,15 @@ body {
 ::-webkit-scrollbar-thumb { background: #22d3ee; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
 
+/* ── Homepage Light Override ──────────────────────────────── */
+.homepage-root {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.homepage-root ::-webkit-scrollbar-track { background: #f1f5f9; }
+.homepage-root ::-webkit-scrollbar-thumb { background: #06b6d4; }
+
 /* ── Glassmorphism Card ───────────────────────────────────── */
 @layer components {
   .glass-card {
@@ -117,3 +126,8 @@ body {
   box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.4), 0 20px 60px rgba(0, 0, 0, 0.5),
     0 0 40px rgba(34, 211, 238, 0.08);
 }
+
+/* ── Animation delay utilities ────────────────────────────── */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }

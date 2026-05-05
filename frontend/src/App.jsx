@@ -4,6 +4,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 
+import HomePage            from './pages/HomePage';
 import LoginPage           from './pages/LoginPage';
 import RegisterPage        from './pages/RegisterPage';
 import DashboardPage       from './pages/DashboardPage';
@@ -24,7 +25,7 @@ function App() {
 
         <Routes>
           {/* Public routes */}
-          <Route path="/"         element={<Navigate to="/login" replace />} />
+          <Route path="/"         element={<HomePage />} />
           <Route path="/login"    element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
@@ -59,7 +60,7 @@ function App() {
           />
 
           {/* 404 fallback */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </Router>

@@ -2,6 +2,13 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from './Toast';
 import { useState } from 'react';
+import {
+  HiOutlineLogout,
+  HiOutlineViewGrid,
+  HiOutlineShieldCheck,
+  HiOutlineMenu,
+  HiOutlineX,
+} from 'react-icons/hi';
 
 const BrainIcon = () => (
   <svg viewBox="0 0 36 36" fill="none" className="w-7 h-7" aria-hidden="true">
@@ -20,15 +27,16 @@ const BrainIcon = () => (
   </svg>
 );
 
-const NavLink = ({ to, children, active }) => (
+const NavLink = ({ to, children, active, icon: Icon }) => (
   <Link
     to={to}
-    className={`text-sm font-medium transition-colors duration-200 px-3 py-1.5 rounded-lg ${
+    className={`text-sm font-medium transition-colors duration-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${
       active
         ? 'text-cyan-400 bg-cyan-400/10'
         : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
     }`}
   >
+    {Icon && <Icon className="w-4 h-4" />}
     {children}
   </Link>
 );
@@ -39,6 +47,7 @@ const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -50,13 +59,14 @@ const Navbar = () => {
       addToast('Failed to sign out. Please try again.', 'error');
     } finally {
       setLoggingOut(false);
+      setMobileOpen(false);
     }
   };
 
   const isActive = (path) => location.pathname === path;
 
-  // Don't show navbar on auth pages
-  const hideOn = ['/login', '/register'];
+  // Don't show navbar on auth pages or homepage (homepage has its own navbar)
+  const hideOn = ['/login', '/register', '/'];
   if (hideOn.includes(location.pathname)) return null;
 
   return (
@@ -79,13 +89,13 @@ const Navbar = () => {
             </div>
           </Link>
 
-          {/* Nav links */}
+          {/* Desktop Nav links */}
           {firebaseUser && (
             <nav className="hidden sm:flex items-center gap-1">
               {isAdmin && (
-                <NavLink to="/admin" active={isActive('/admin')}>Admin</NavLink>
+                <NavLink to="/admin" active={isActive('/admin')} icon={HiOutlineShieldCheck}>Admin</NavLink>
               )}
-              <NavLink to="/dashboard" active={isActive('/dashboard')}>Dashboard</NavLink>
+              <NavLink to="/dashboard" active={isActive('/dashboard')} icon={HiOutlineViewGrid}>Dashboard</NavLink>
             </nav>
           )}
 
@@ -107,10 +117,20 @@ const Navbar = () => {
                 <button
                   onClick={handleLogout}
                   disabled={loggingOut}
-                  className="text-xs font-semibold text-slate-400 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-400/10 disabled:opacity-50"
+                  className="hidden sm:flex text-xs font-semibold text-slate-400 hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg hover:bg-red-400/10 disabled:opacity-50 items-center gap-1.5"
                   id="navbar-logout-btn"
                 >
+                  <HiOutlineLogout className="w-3.5 h-3.5" />
                   {loggingOut ? 'Signing out…' : 'Sign Out'}
+                </button>
+
+                {/* Mobile hamburger */}
+                <button
+                  onClick={() => setMobileOpen(!mobileOpen)}
+                  className="sm:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                  aria-label="Toggle menu"
+                >
+                  {mobileOpen ? <HiOutlineX className="w-5 h-5" /> : <HiOutlineMenu className="w-5 h-5" />}
                 </button>
               </>
             ) : (
@@ -132,6 +152,44 @@ const Navbar = () => {
 
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {mobileOpen && firebaseUser && (
+        <div className="sm:hidden border-t border-white/[0.06] animate-slide-down">
+          <div className="px-4 py-4 space-y-2">
+            {isAdmin && (
+              <Link to="/admin" onClick={() => setMobileOpen(false)}
+                className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive('/admin') ? 'text-cyan-400 bg-cyan-400/10' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+              >
+                <span className="flex items-center gap-2"><HiOutlineShieldCheck className="w-4 h-4" /> Admin Panel</span>
+              </Link>
+            )}
+            <Link to="/dashboard" onClick={() => setMobileOpen(false)}
+              className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive('/dashboard') ? 'text-cyan-400 bg-cyan-400/10' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}
+            >
+              <span className="flex items-center gap-2"><HiOutlineViewGrid className="w-4 h-4" /> Dashboard</span>
+            </Link>
+
+            <div className="pt-2 mt-2 border-t border-white/[0.06]">
+              <div className="flex items-center gap-2 px-4 py-2">
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-xs text-slate-400 font-medium truncate">{mongoProfile?.name || firebaseUser.email}</span>
+                {mongoProfile?.role && (
+                  <span className="badge-cyan text-[10px] px-2 py-0.5">{mongoProfile.role}</span>
+                )}
+              </div>
+              <button
+                onClick={handleLogout}
+                disabled={loggingOut}
+                className="w-full mt-1 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-400/10 transition-colors"
+              >
+                <HiOutlineLogout className="w-4 h-4" />
+                {loggingOut ? 'Signing out…' : 'Sign Out'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 };
