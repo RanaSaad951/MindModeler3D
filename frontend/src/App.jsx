@@ -1,0 +1,69 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
+import LoadingSpinner from './components/LoadingSpinner';
+import ProtectedRoute from './components/ProtectedRoute';
+import Navbar from './components/Navbar';
+
+import LoginPage           from './pages/LoginPage';
+import RegisterPage        from './pages/RegisterPage';
+import DashboardPage       from './pages/DashboardPage';
+import PendingApprovalPage from './pages/PendingApprovalPage';
+import AdminDashboard      from './pages/AdminDashboard';
+
+function App() {
+  const { authLoading } = useAuth();
+
+  if (authLoading) {
+    return <LoadingSpinner fullScreen message="Initializing secure session…" />;
+  }
+
+  return (
+    <Router>
+      <div className="min-h-screen bg-slate-900 font-inter">
+        <Navbar />
+
+        <Routes>
+          {/* Public routes */}
+          <Route path="/"         element={<Navigate to="/login" replace />} />
+          <Route path="/login"    element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Pending approval — auth required */}
+          <Route
+            path="/pending-approval"
+            element={
+              <ProtectedRoute requireAuth>
+                <PendingApprovalPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Main dashboard — auth + Doctor must be approved */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute requireAuth requireApproved>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin dashboard — strict email guard (frontend) + token guard (backend) */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute requireAuth requireAdmin>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 404 fallback */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+}
+
+export default App;
