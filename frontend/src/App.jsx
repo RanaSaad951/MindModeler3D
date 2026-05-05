@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext';
 import LoadingSpinner from './components/LoadingSpinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
+import ScrollToTop from './components/ScrollToTop';
 
 import HomePage            from './pages/HomePage';
 import LoginPage           from './pages/LoginPage';
@@ -10,6 +11,10 @@ import RegisterPage        from './pages/RegisterPage';
 import DashboardPage       from './pages/DashboardPage';
 import PendingApprovalPage from './pages/PendingApprovalPage';
 import AdminDashboard      from './pages/AdminDashboard';
+import PatientInfoPage     from './pages/PatientInfoPage';
+import DoctorInfoPage      from './pages/DoctorInfoPage';
+import PrivacyPolicyPage   from './pages/PrivacyPolicyPage';
+import TermsOfServicePage  from './pages/TermsOfServicePage';
 
 function App() {
   const { authLoading } = useAuth();
@@ -20,14 +25,19 @@ function App() {
 
   return (
     <Router>
+      <ScrollToTop />
       <div className="min-h-screen bg-slate-900 font-inter">
         <Navbar />
 
         <Routes>
           {/* Public routes */}
-          <Route path="/"         element={<HomePage />} />
-          <Route path="/login"    element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/"              element={<HomePage />} />
+          <Route path="/login"         element={<LoginPage />} />
+          <Route path="/register"      element={<RegisterPage />} />
+          <Route path="/patient-info"  element={<PatientInfoPage />} />
+          <Route path="/doctor-info"   element={<DoctorInfoPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms"         element={<TermsOfServicePage />} />
 
           {/* Pending approval — auth required */}
           <Route

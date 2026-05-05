@@ -65,8 +65,8 @@ const Navbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  // Don't show navbar on auth pages or homepage (homepage has its own navbar)
-  const hideOn = ['/login', '/register', '/'];
+  // Don't show navbar on auth pages or pages with their own inline navbar
+  const hideOn = ['/login', '/register', '/', '/patient-info', '/doctor-info', '/privacy-policy', '/terms'];
   if (hideOn.includes(location.pathname)) return null;
 
   return (

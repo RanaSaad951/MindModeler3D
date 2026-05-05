@@ -7,13 +7,36 @@ import {
 } from 'react-icons/fa';
 import { HiOutlineArrowRight } from 'react-icons/hi';
 
-/* ─── Brain Logo SVG ─────────────────────────────────────────── */
+/* ─── Brain + AI Logo SVG ────────────────────────────────────── */
 const BrainLogo = ({ size = 'w-9 h-9' }) => (
   <svg viewBox="0 0 40 40" fill="none" className={size} aria-hidden="true">
-    <rect width="40" height="40" rx="8" fill="url(#blg)" />
-    <path d="M14 22c0-3.3 2.7-6 6-6s6 2.7 6 6-2.7 6-6 6m0-12a4 4 0 014-4" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
-    <path d="M20 16v4l2.5 2.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <defs><linearGradient id="blg" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse"><stop stopColor="#0284c7"/><stop offset="1" stopColor="#0ea5e9"/></linearGradient></defs>
+    <rect width="40" height="40" rx="10" fill="url(#brainGrad)" />
+    {/* Outer glow */}
+    <circle cx="20" cy="19" r="12" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+    {/* Left brain hemisphere */}
+    <path d="M20 10c-1.5 0-3 .6-4 1.7C14.5 13.3 14 15.5 14 17c0 2 .8 3.5 2 4.5.8.7 1.2 1.8 1.2 3v2.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+    <path d="M14 17c-1.2.5-2 1.8-2 3.2 0 1.8 1.2 3 2.8 3" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+    {/* Right brain hemisphere */}
+    <path d="M20 10c1.5 0 3 .6 4 1.7 1.5 1.6 2 3.8 2 5.3 0 2-.8 3.5-2 4.5-.8.7-1.2 1.8-1.2 3v2.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" fill="none" />
+    <path d="M26 17c1.2.5 2 1.8 2 3.2 0 1.8-1.2 3-2.8 3" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" fill="none" />
+    {/* Neural network nodes */}
+    <circle cx="16" cy="15" r="1.3" fill="#67e8f9" />
+    <circle cx="24" cy="15" r="1.3" fill="#67e8f9" />
+    <circle cx="20" cy="20" r="1.5" fill="#a5f3fc" />
+    <circle cx="15" cy="22" r="1" fill="#67e8f9" />
+    <circle cx="25" cy="22" r="1" fill="#67e8f9" />
+    {/* Neural connections */}
+    <line x1="16" y1="15" x2="20" y2="20" stroke="#67e8f9" strokeWidth="0.7" opacity="0.7" />
+    <line x1="24" y1="15" x2="20" y2="20" stroke="#67e8f9" strokeWidth="0.7" opacity="0.7" />
+    <line x1="15" y1="22" x2="20" y2="20" stroke="#67e8f9" strokeWidth="0.5" opacity="0.5" />
+    <line x1="25" y1="22" x2="20" y2="20" stroke="#67e8f9" strokeWidth="0.5" opacity="0.5" />
+    <defs>
+      <linearGradient id="brainGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#0c4a6e" />
+        <stop offset="0.5" stopColor="#0284c7" />
+        <stop offset="1" stopColor="#0ea5e9" />
+      </linearGradient>
+    </defs>
   </svg>
 );
 
@@ -35,7 +58,7 @@ const HomePage = () => {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', city: '', state: '', message: '' });
 
-  const navLinks = ['Home', 'Patients', 'Doctors', 'Company'];
+  const navLinks = ['Home', 'Patients', 'Doctors'];
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
   const handleSubmit = (e) => { e.preventDefault(); alert('Thank you! We will be in touch shortly.'); setForm({ name: '', email: '', city: '', state: '', message: '' }); };
@@ -77,12 +100,9 @@ const HomePage = () => {
 
           {/* Center nav links (desktop) */}
           <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => (
-              <a key={link} href={link === 'Home' ? '#' : `#${link.toLowerCase()}`}
-                className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-[#0284c7] rounded-lg hover:bg-sky-50 transition-all duration-200" id={`nav-${link.toLowerCase()}`}>
-                {link}
-              </a>
-            ))}
+            <a href="#" className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-[#0284c7] rounded-lg hover:bg-sky-50 transition-all duration-200" id="nav-home">Home</a>
+            <Link to="/patient-info" className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-[#0284c7] rounded-lg hover:bg-sky-50 transition-all duration-200" id="nav-patients">Patients</Link>
+            <Link to="/doctor-info" className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-[#0284c7] rounded-lg hover:bg-sky-50 transition-all duration-200" id="nav-doctors">Doctors</Link>
           </nav>
 
           {/* Right — Contact button + mobile toggle */}
@@ -100,10 +120,9 @@ const HomePage = () => {
         {mobileMenu && (
           <div className="md:hidden border-t border-slate-100 bg-white animate-slide-down">
             <div className="px-4 py-3 space-y-1">
-              {navLinks.map((link) => (
-                <a key={link} href={link === 'Home' ? '#' : `#${link.toLowerCase()}`} onClick={() => setMobileMenu(false)}
-                  className="block px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#0284c7] hover:bg-sky-50 transition">{link}</a>
-              ))}
+              <a href="#" onClick={() => setMobileMenu(false)} className="block px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#0284c7] hover:bg-sky-50 transition">Home</a>
+              <Link to="/patient-info" onClick={() => setMobileMenu(false)} className="block px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#0284c7] hover:bg-sky-50 transition">Patients</Link>
+              <Link to="/doctor-info" onClick={() => setMobileMenu(false)} className="block px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:text-[#0284c7] hover:bg-sky-50 transition">Doctors</Link>
               <a href="#contact" onClick={() => setMobileMenu(false)} className="block px-4 py-2.5 rounded-lg text-sm font-bold text-white bg-[#0284c7] text-center mt-2">Contact Us</a>
             </div>
           </div>
@@ -158,27 +177,39 @@ const HomePage = () => {
           {/* Two cards */}
           <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-3xl mx-auto">
             {/* Card 1 — Patients */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 p-8 flex flex-col items-center text-center hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-              <div className="w-16 h-16 rounded-2xl bg-sky-50 flex items-center justify-center mb-5 group-hover:bg-sky-100 transition-colors">
-                <FaWheelchair className="w-7 h-7 text-[#0284c7]" />
+            <div className="relative rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+              <div className="absolute inset-0 z-0">
+                <img src="/images/patient-card-bg.png" alt="" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/85 to-white/95" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">For Patients</h3>
-              <p className="text-sm text-slate-500 leading-relaxed mb-6">Access world-class AI diagnostics from the comfort of your home. Upload scans, track results, and communicate with your care team.</p>
-              <a href="#" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold text-[#0284c7] border-2 border-[#0284c7] hover:bg-[#0284c7] hover:text-white transition-all duration-200" id="learn-more-patients">
-                Learn More <HiOutlineArrowRight className="w-4 h-4" />
-              </a>
+              <div className="relative z-10 p-8 flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-2xl bg-sky-50/80 backdrop-blur-sm flex items-center justify-center mb-5 group-hover:bg-sky-100/80 transition-colors">
+                  <FaWheelchair className="w-7 h-7 text-[#0284c7]" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">For Patients</h3>
+                <p className="text-sm text-slate-600 leading-relaxed mb-6">Access world-class AI diagnostics from the comfort of your home. Upload scans, track results, and communicate with your care team.</p>
+                <Link to="/patient-info" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold text-[#0284c7] border-2 border-[#0284c7] hover:bg-[#0284c7] hover:text-white transition-all duration-200" id="learn-more-patients">
+                  Learn More <HiOutlineArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
 
-            {/* Card 2 — Providers */}
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 p-8 flex flex-col items-center text-center hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-              <div className="w-16 h-16 rounded-2xl bg-sky-50 flex items-center justify-center mb-5 group-hover:bg-sky-100 transition-colors">
-                <FaStethoscope className="w-7 h-7 text-[#0284c7]" />
+            {/* Card 2 — Doctors */}
+            <div className="relative rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+              <div className="absolute inset-0 z-0">
+                <img src="/images/doctor-card-bg.png" alt="" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/85 to-white/95" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">For Medical Providers</h3>
-              <p className="text-sm text-slate-500 leading-relaxed mb-6">Leverage cutting-edge AI models to enhance your diagnostic workflow, manage cases, and deliver precise reports in minutes.</p>
-              <a href="#" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold text-[#0284c7] border-2 border-[#0284c7] hover:bg-[#0284c7] hover:text-white transition-all duration-200" id="learn-more-providers">
-                Learn More <HiOutlineArrowRight className="w-4 h-4" />
-              </a>
+              <div className="relative z-10 p-8 flex flex-col items-center text-center">
+                <div className="w-16 h-16 rounded-2xl bg-sky-50/80 backdrop-blur-sm flex items-center justify-center mb-5 group-hover:bg-sky-100/80 transition-colors">
+                  <FaStethoscope className="w-7 h-7 text-[#0284c7]" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-3">For Doctors</h3>
+                <p className="text-sm text-slate-600 leading-relaxed mb-6">Leverage cutting-edge AI models to enhance your diagnostic workflow, manage cases, and deliver precise reports in minutes.</p>
+                <Link to="/doctor-info" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold text-[#0284c7] border-2 border-[#0284c7] hover:bg-[#0284c7] hover:text-white transition-all duration-200" id="learn-more-providers">
+                  Learn More <HiOutlineArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -316,8 +347,8 @@ const HomePage = () => {
             </div>
             <p className="text-xs text-sky-200/60">&copy; 2026 Mind Modeler 3D. All rights reserved.</p>
             <div className="flex items-center gap-6 text-xs text-sky-200/60">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+              <Link to="/privacy-policy" className="hover:text-white transition-colors">Privacy Policy</Link>
+              <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
             </div>
           </div>
         </div>
