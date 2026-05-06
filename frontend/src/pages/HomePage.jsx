@@ -58,6 +58,8 @@ const HomePage = () => {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', city: '', state: '', message: '' });
 
+
+
   const navLinks = ['Home', 'Patients', 'Doctors'];
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -107,6 +109,7 @@ const HomePage = () => {
 
           {/* Right — Contact button + mobile toggle */}
           <div className="flex items-center gap-3">
+
             <a href="#contact" className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold text-white bg-[#0284c7] hover:bg-[#0369a1] shadow-lg shadow-sky-600/20 hover:shadow-sky-600/40 transition-all duration-200" id="nav-contact-btn">
               Contact Us
             </a>
@@ -157,7 +160,7 @@ const HomePage = () => {
 
         {/* Decorative bottom wave */}
         <svg className="absolute bottom-0 left-0 w-full" viewBox="0 0 1440 60" fill="none" preserveAspectRatio="none" style={{ height: '50px' }}>
-          <path d="M0 30C240 60 480 0 720 30C960 60 1200 0 1440 30V60H0V30Z" fill="#f8fafc" />
+          <path d="M0 30C240 60 480 0 720 30C960 60 1200 0 1440 30V60H0V30Z" className="fill-[#f8fafc]" />
         </svg>
       </section>
 
@@ -177,10 +180,10 @@ const HomePage = () => {
           {/* Two cards */}
           <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-3xl mx-auto">
             {/* Card 1 — Patients */}
-            <div className="relative rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-              <div className="absolute inset-0 z-0">
-                <img src="/images/patient-card-bg.png" alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/85 to-white/95" />
+            <div className="relative rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 overflow-hidden transition-all duration-500 ease-out hover:-translate-y-2 hover:shadow-[0_15px_30px_rgba(2,132,199,0.2)] group">
+              <div className="absolute inset-0 z-0 overflow-hidden">
+                <img src="/images/patient-card-bg.png" alt="" className="w-full h-full object-cover transition-transform duration-1000 ease-in-out group-hover:scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/55 via-white/60 to-white/70" />
               </div>
               <div className="relative z-10 p-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-2xl bg-sky-50/80 backdrop-blur-sm flex items-center justify-center mb-5 group-hover:bg-sky-100/80 transition-colors">
@@ -195,10 +198,10 @@ const HomePage = () => {
             </div>
 
             {/* Card 2 — Doctors */}
-            <div className="relative rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
-              <div className="absolute inset-0 z-0">
-                <img src="/images/doctor-card-bg.png" alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-white/85 to-white/95" />
+            <div className="relative rounded-2xl border border-slate-100 shadow-lg shadow-slate-200/50 overflow-hidden transition-all duration-500 ease-out hover:-translate-y-2 hover:shadow-[0_15px_30px_rgba(2,132,199,0.2)] group">
+              <div className="absolute inset-0 z-0 overflow-hidden">
+                <img src="/images/doctor-card-bg.png" alt="" className="w-full h-full object-cover transition-transform duration-1000 ease-in-out group-hover:scale-110" />
+                <div className="absolute inset-0 bg-gradient-to-b from-white/55 via-white/60 to-white/70" />
               </div>
               <div className="relative z-10 p-8 flex flex-col items-center text-center">
                 <div className="w-16 h-16 rounded-2xl bg-sky-50/80 backdrop-blur-sm flex items-center justify-center mb-5 group-hover:bg-sky-100/80 transition-colors">
@@ -268,11 +271,14 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* ════════════════════════════════════════════════════════
-          SECTION 5 — CONTACT US
-          ════════════════════════════════════════════════════════ */}
-      <section className="py-20 sm:py-28 bg-gradient-to-b from-sky-50 to-white" id="contact">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center">
+      <section className="relative py-20 sm:py-28 overflow-hidden" id="contact">
+        {/* Sparkling brain background */}
+        <div className="absolute inset-0 z-0">
+          <img src="/images/sparkling-brain-light.png" alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-white/80" />
+        </div>
+
+        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 text-center">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-sky-100 mb-5">
             <FaHeadset className="w-6 h-6 text-[#0284c7]" />
           </div>
@@ -280,54 +286,43 @@ const HomePage = () => {
           <p className="mt-3 text-slate-500 max-w-lg mx-auto">We&apos;re here to help! Please contact us with any questions or feedback.</p>
 
           {/* Contact Card */}
-          <div className="mt-12 bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
+          <div className="mt-12 bg-white/90 backdrop-blur-lg rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden">
             <div className="grid grid-cols-1 lg:grid-cols-5">
-              {/* Left — Image */}
               <div className="lg:col-span-2 relative min-h-[240px] lg:min-h-full">
                 <img src="/images/support-person.png" alt="Friendly support representative" className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0284c7]/40 to-transparent lg:bg-gradient-to-r" />
               </div>
-
-              {/* Right — Form */}
               <div className="lg:col-span-3 p-8 sm:p-10 text-left">
                 <div className="flex items-center gap-2 mb-6 pb-5 border-b border-slate-100">
                   <FaPhone className="w-4 h-4 text-[#0284c7]" />
                   <span className="text-sm font-bold text-slate-700">Call Us: <span className="text-[#0284c7]">(123) 456-7890</span></span>
                 </div>
-
                 <form onSubmit={handleSubmit} className="space-y-4" id="contact-form">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="contact-name" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Name</label>
-                      <input id="contact-name" name="name" value={form.name} onChange={handleChange} required
-                        className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all" placeholder="John Doe" />
+                      <input id="contact-name" name="name" value={form.name} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all" placeholder="John Doe" />
                     </div>
                     <div>
                       <label htmlFor="contact-email" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Email</label>
-                      <input id="contact-email" name="email" type="email" value={form.email} onChange={handleChange} required
-                        className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all" placeholder="john@example.com" />
+                      <input id="contact-email" name="email" type="email" value={form.email} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all" placeholder="john@example.com" />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="contact-city" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">City</label>
-                      <input id="contact-city" name="city" value={form.city} onChange={handleChange}
-                        className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all" placeholder="New York" />
+                      <input id="contact-city" name="city" value={form.city} onChange={handleChange} className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all" placeholder="New York" />
                     </div>
                     <div>
                       <label htmlFor="contact-state" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">State</label>
-                      <input id="contact-state" name="state" value={form.state} onChange={handleChange}
-                        className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all" placeholder="NY" />
+                      <input id="contact-state" name="state" value={form.state} onChange={handleChange} className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all" placeholder="NY" />
                     </div>
                   </div>
                   <div>
                     <label htmlFor="contact-message" className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Message</label>
-                    <textarea id="contact-message" name="message" rows={4} value={form.message} onChange={handleChange} required
-                      className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all resize-none" placeholder="How can we help you?" />
+                    <textarea id="contact-message" name="message" rows={4} value={form.message} onChange={handleChange} required className="w-full px-4 py-3 rounded-xl text-sm text-slate-800 bg-slate-50 border border-slate-200 outline-none focus:border-[#0284c7] focus:ring-2 focus:ring-sky-100 transition-all resize-none" placeholder="How can we help you?" />
                   </div>
-                  <button type="submit" className="w-full sm:w-auto px-8 py-3 rounded-xl text-sm font-bold text-white bg-[#0284c7] hover:bg-[#0369a1] shadow-lg shadow-sky-600/20 hover:shadow-sky-600/40 transition-all duration-200" id="contact-submit-btn">
-                    Submit
-                  </button>
+                  <button type="submit" className="w-full sm:w-auto px-8 py-3 rounded-xl text-sm font-bold text-white bg-[#0284c7] hover:bg-[#0369a1] shadow-lg shadow-sky-600/20 hover:shadow-sky-600/40 transition-all duration-200" id="contact-submit-btn">Submit</button>
                 </form>
               </div>
             </div>

@@ -26,7 +26,7 @@ function App() {
   return (
     <Router>
       <ScrollToTop />
-      <div className="min-h-screen bg-slate-900 font-inter">
+      <div className="min-h-screen bg-white text-slate-900 font-inter">
         <Navbar />
 
         <Routes>
