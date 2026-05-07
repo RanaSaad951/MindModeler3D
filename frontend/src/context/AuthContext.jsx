@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -16,6 +16,9 @@ export const AuthProvider = ({ children }) => {
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [mongoProfile, setMongoProfile] = useState(null);
   const [authLoading,  setAuthLoading]  = useState(true);  // initial onAuthStateChanged
+
+  // ── Guard: prevent onAuthStateChanged from racing with login() ──
+  const loginInProgressRef = useRef(false);
 
   // ── Fetch MongoDB profile by Firebase UID ───────────────────
   const fetchMongoProfile = useCallback(async (uid) => {
@@ -36,6 +39,13 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
+
+      // If login() is already handling the profile fetch, skip the
+      // duplicate call here — this eliminates the race condition.
+      if (loginInProgressRef.current) {
+        return;
+      }
+
       if (user) {
         await fetchMongoProfile(user.uid);
       } else {
@@ -53,9 +63,24 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    const profile = await fetchMongoProfile(cred.user.uid);
-    return { firebaseUser: cred.user, mongoProfile: profile };
+    // Signal that login() owns the profile-fetch lifecycle
+    loginInProgressRef.current = true;
+
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password);
+
+      // Fetch profile and update context state — this is the
+      // single source of truth; onAuthStateChanged won't race it.
+      const profile = await fetchMongoProfile(cred.user.uid);
+
+      // Mark auth as fully loaded now that profile is committed
+      setAuthLoading(false);
+
+      return { firebaseUser: cred.user, mongoProfile: profile };
+    } finally {
+      // Release the guard so future auth-state changes work normally
+      loginInProgressRef.current = false;
+    }
   };
 
   const logout = async () => {

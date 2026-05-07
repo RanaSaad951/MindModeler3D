@@ -10,7 +10,7 @@ const adminAuth = require('../middleware/adminAuth');
 // Returns all doctors awaiting approval
 router.get('/pending-doctors', adminAuth, async (req, res) => {
   try {
-    const doctors = await User.find({ role: 'Doctor', isApproved: false })
+    const doctors = await User.find({ role: 'Doctor', isApprovedByAdmin: false })
       .select('firebaseUid name email pmdcNumber createdAt')
       .sort({ createdAt: -1 });
 
@@ -27,7 +27,7 @@ router.put('/approve/:firebaseUid', adminAuth, async (req, res) => {
   try {
     const user = await User.findOneAndUpdate(
       { firebaseUid: req.params.firebaseUid, role: 'Doctor' },
-      { isApproved: true },
+      { isApprovedByAdmin: true },
       { new: true }
     );
 

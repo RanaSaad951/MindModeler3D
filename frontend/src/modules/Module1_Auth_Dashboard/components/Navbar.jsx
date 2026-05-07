@@ -1,5 +1,5 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from './Toast';
 import { useState } from 'react';
 import {
@@ -66,12 +66,17 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path;
 
   // Don't show navbar on auth pages or pages with their own inline navbar
-  const hideOn = ['/login', '/register', '/', '/patient-info', '/doctor-info', '/privacy-policy', '/terms'];
+  const hideOn = [
+    '/login', '/register', '/', '/patient-info', '/doctor-info',
+    '/privacy-policy', '/terms', '/forgot-password',
+    '/patient-dashboard', '/complete-profile', '/patient-settings',
+    '/doctor-dashboard', '/complete-doctor-profile', '/doctor-settings',
+  ];
   if (hideOn.includes(location.pathname)) return null;
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/[0.06]"
-      style={{ background: 'rgba(15,23,42,0.85)', backdropFilter: 'blur(20px)' }}
+      style={{ background: '#0f172a' }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">

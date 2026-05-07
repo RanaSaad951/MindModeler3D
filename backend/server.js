@@ -3,8 +3,9 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 
-const userRoutes = require('./routes/userRoutes');
-const adminRoutes = require('./routes/adminRoutes');
+// ─── Module 1: Auth ───────────────────────────────────────────
+const userRoutes = require('./modules/Module1_Auth/routes/userRoutes');
+const adminRoutes = require('./modules/Module1_Auth/routes/adminRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;

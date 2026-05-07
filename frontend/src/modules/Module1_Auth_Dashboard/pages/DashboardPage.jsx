@@ -1,4 +1,6 @@
-import { useAuth } from '../context/AuthContext';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext';
 import {
   HiOutlineCube,
   HiOutlineUsers,
@@ -10,7 +12,6 @@ import {
   HiOutlineChartBar,
   HiOutlineShieldCheck,
   HiOutlinePhotograph,
-  HiOutlineDownload,
   HiOutlineClock,
 } from 'react-icons/hi';
 
@@ -90,11 +91,25 @@ const ModuleCard = ({ icon: Icon, title, status, desc, tag, id }) => (
 );
 
 /* ══════════════════════════════════════════════════════════════ */
+/*  DOCTOR / ADMIN DASHBOARD                                     */
+/*  Patients are immediately redirected to /patient-dashboard.   */
+/* ══════════════════════════════════════════════════════════════ */
 const DashboardPage = () => {
   const { mongoProfile, firebaseUser, isAdmin } = useAuth();
-  const role      = mongoProfile?.role || 'User';
-  const isDoctor  = role === 'Doctor';
-  const isPatient = role === 'Patient';
+  const navigate = useNavigate();
+
+  const role     = mongoProfile?.role || 'User';
+  const isDoctor = role === 'Doctor';
+
+  // ── Foolproof guard: redirect patients away ─────────────────
+  useEffect(() => {
+    if (role === 'Patient') {
+      navigate('/patient-dashboard', { replace: true });
+    }
+  }, [role, navigate]);
+
+  // Don't render anything for patients while the redirect fires
+  if (role === 'Patient') return null;
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -126,17 +141,10 @@ const DashboardPage = () => {
                 {greeting()},
               </p>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
-                {isDoctor ? (
-                  <>Welcome Dr. <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">{mongoProfile?.name || 'Doctor'}</span></>
-                ) : (
-                  <>Hello <span className="bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">{mongoProfile?.name || firebaseUser?.email}</span></>
-                )}
+                Welcome Dr. <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">{mongoProfile?.name || 'Doctor'}</span>
               </h1>
-              {isPatient && (
-                <p className="text-slate-400 text-sm mt-2">Here is your health overview.</p>
-              )}
               <div className="flex items-center gap-2 mt-3">
-                <span className={isDoctor ? 'badge-cyan' : 'badge-emerald'}>
+                <span className="badge-cyan">
                   <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
                   {role}
                 </span>
@@ -217,94 +225,6 @@ const DashboardPage = () => {
           </>
         )}
 
-        {/* ════════════════════════════════════════════════════ */}
-        {/* ── PATIENT DASHBOARD ─────────────────────────────── */}
-        {/* ════════════════════════════════════════════════════ */}
-        {isPatient && (
-          <>
-            {/* Upload Action */}
-            <ActionCard
-              icon={HiOutlineUpload}
-              title="Upload New MRI Scan"
-              desc="Upload your MRI scan to send it to your assigned doctor for AI-powered analysis. Supported formats: DICOM, NIfTI."
-              btnText="Upload Scan"
-              color="cyan"
-              id="patient-upload-btn"
-            />
-
-            {/* Dashboard Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* My MRI Scans */}
-              <div className="glass-card-strong p-6 border-cyan-500/15 hover:border-cyan-500/30 transition-all duration-300" id="patient-scans-card">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/15 to-cyan-600/5 border border-cyan-500/20">
-                    <HiOutlinePhotograph className="w-5 h-5 text-cyan-400" />
-                  </div>
-                  <h3 className="text-base font-bold text-white">My MRI Scans</h3>
-                </div>
-                <div className="space-y-3">
-                  {/* Placeholder items */}
-                  {['Brain MRI — Pending', 'Spinal Scan — Analyzed'].map((s, i) => (
-                    <div key={i} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <span className="text-sm text-slate-300">{s.split('—')[0]}</span>
-                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                        s.includes('Pending')
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        {s.split('— ')[1]}
-                      </span>
-                    </div>
-                  ))}
-                  <p className="text-xs text-slate-600 text-center mt-2">Module 02 — Coming soon</p>
-                </div>
-              </div>
-
-              {/* My Medical Reports */}
-              <div className="glass-card-strong p-6 border-emerald-500/15 hover:border-emerald-500/30 transition-all duration-300" id="patient-reports-card">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/15 to-emerald-600/5 border border-emerald-500/20">
-                    <HiOutlineDownload className="w-5 h-5 text-emerald-400" />
-                  </div>
-                  <h3 className="text-base font-bold text-white">My Medical Reports</h3>
-                </div>
-                <div className="space-y-3">
-                  {['Diagnostic Report #1', 'Follow-up Report #2'].map((r, i) => (
-                    <div key={i} className="flex items-center justify-between py-2.5 px-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                      <span className="text-sm text-slate-300">{r}</span>
-                      <button className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1">
-                        <HiOutlineDownload className="w-3.5 h-3.5" /> PDF
-                      </button>
-                    </div>
-                  ))}
-                  <p className="text-xs text-slate-600 text-center mt-2">Module 04 — Coming soon</p>
-                </div>
-              </div>
-
-              {/* Assigned Doctor */}
-              <div className="glass-card-strong p-6 border-violet-500/15 hover:border-violet-500/30 transition-all duration-300" id="patient-doctor-card">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500/15 to-violet-600/5 border border-violet-500/20">
-                    <HiOutlineUserCircle className="w-5 h-5 text-violet-400" />
-                  </div>
-                  <h3 className="text-base font-bold text-white">Assigned Doctor</h3>
-                </div>
-                <div className="flex flex-col items-center py-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-600/20 border-2 border-violet-500/30 flex items-center justify-center mb-3">
-                    <HiOutlineUserCircle className="w-10 h-10 text-violet-400" />
-                  </div>
-                  <p className="text-base font-bold text-white">Dr. —</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Neurologist</p>
-                  <span className="badge-emerald text-[10px] mt-3">
-                    <HiOutlineShieldCheck className="w-3 h-3" /> Verified
-                  </span>
-                  <p className="text-xs text-slate-600 text-center mt-4">Module 03 — Coming soon</p>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
         {/* ── System Modules (shared) ─────────────────────── */}
         <div className="glass-card p-6">
           <h2 className="text-base font-semibold text-slate-200 mb-5 flex items-center gap-2">
@@ -330,7 +250,7 @@ const DashboardPage = () => {
               { label: 'Full Name',   value: mongoProfile?.name  || '—' },
               { label: 'Email',       value: mongoProfile?.email || firebaseUser?.email || '—' },
               { label: 'Role',        value: role },
-              { label: 'Status',      value: mongoProfile?.isApproved ? 'Approved' : isPatient ? 'Active' : 'Pending' },
+              { label: 'Status',      value: mongoProfile?.isApproved ? 'Approved' : 'Pending' },
               ...(isDoctor && mongoProfile?.pmdcNumber
                 ? [{ label: 'PMDC Number', value: mongoProfile.pmdcNumber }]
                 : []),

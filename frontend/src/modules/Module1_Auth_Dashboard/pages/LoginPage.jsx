@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -33,25 +33,55 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      const { mongoProfile } = await login(form.email.trim(), form.password);
+      // login() now awaits BOTH Firebase auth AND MongoDB profile fetch
+      // before returning — no race condition possible here.
+      const result = await login(form.email.trim(), form.password);
+      const profile = result.mongoProfile;
 
+      // ── Admin shortcut ──
       if (form.email.trim() === import.meta.env.VITE_ADMIN_EMAIL) {
         addToast('Welcome back, Administrator.', 'success');
         return navigate('/admin');
       }
 
-      if (!mongoProfile) {
+      // ── No profile found ──
+      if (!profile) {
         addToast('Profile not found. Please contact support.', 'error');
+        setLoading(false);
         return;
       }
 
-      if (mongoProfile.role === 'Doctor' && !mongoProfile.isApproved) {
-        addToast('Login successful. Your account is pending approval.', 'info');
+      // ── Doctor pending approval ──
+      if (profile.role === 'Doctor' && !profile.isApprovedByAdmin) {
+        // Doctor who hasn't completed profile yet → onboarding first
+        if (!profile.isProfileComplete) {
+          addToast('Account created! Please complete your profile.', 'info');
+          return navigate('/complete-doctor-profile');
+        }
+        addToast('Login successful. Your account is pending admin approval.', 'info');
         return navigate('/pending-approval');
       }
 
-      addToast(`Welcome back, ${mongoProfile.name}!`, 'success');
-      navigate('/dashboard');
+      addToast(`Welcome back, ${profile.name}!`, 'success');
+
+      // ── Role-based redirect ──────────────────────────────────
+      if (profile.role === 'Patient') {
+        if (!profile.isProfileComplete) {
+          navigate('/complete-profile');
+        } else {
+          navigate('/patient-dashboard');
+        }
+      } else if (profile.role === 'Doctor') {
+        if (!profile.isProfileComplete) {
+          navigate('/complete-doctor-profile');
+        } else {
+          navigate('/doctor-dashboard');
+        }
+      } else {
+        navigate('/dashboard');
+      }
+      // NOTE: loading stays true intentionally — we're navigating away,
+      // so keeping the spinner prevents any flash or double-click.
     } catch (err) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
         setFormError('Invalid email or password.');
@@ -60,7 +90,6 @@ const LoginPage = () => {
       } else {
         setFormError(err.message || 'Sign in failed. Please try again.');
       }
-    } finally {
       setLoading(false);
     }
   };
