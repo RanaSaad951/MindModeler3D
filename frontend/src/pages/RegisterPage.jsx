@@ -9,9 +9,14 @@ const IconUser = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" 
 const IconMail = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
 const IconLock = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>;
 const IconID = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" /></svg>;
+const IconInfo = () => <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 
 /* ── Shared input classes ─────────────────────────────────── */
 const inputCls = 'w-full pl-11 pr-4 py-3.5 rounded-full text-sm text-black bg-white border border-gray-300 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 transition-all placeholder:text-gray-400';
+
+/* ── Password regex: min 8 chars, 1 uppercase, 1 special char */
+const PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*[!@#$&*]).{8,}$/;
+const EMAIL_REGEX    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /* ── Input wrapper ─────────────────────────────────────────── */
 const FormField = ({ label, id, icon, ...props }) => (
@@ -33,20 +38,33 @@ const RegisterPage = () => {
   const [role, setRole] = useState('Patient');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    setFormError('');
+    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError('');
 
+    /* ── Frontend validation ────────────────────────── */
     if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
-      return addToast('Please fill in all required fields.', 'error');
+      setFormError('Please fill in all required fields.');
+      return;
     }
-    if (form.password.length < 6) {
-      return addToast('Password must be at least 6 characters.', 'error');
+    if (!EMAIL_REGEX.test(form.email.trim())) {
+      setFormError('Please enter a valid email address.');
+      return;
+    }
+    if (!PASSWORD_REGEX.test(form.password)) {
+      setFormError('Password does not meet the requirements.');
+      return;
     }
     if (role === 'Doctor' && !form.pmdcNumber.trim()) {
-      return addToast('PMDC Registration Number is required for Doctors.', 'error');
+      setFormError('PMDC Registration Number is required for Doctors.');
+      return;
     }
 
     setLoading(true);
@@ -66,7 +84,10 @@ const RegisterPage = () => {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Registration failed.');
+      if (!res.ok) {
+        setFormError(data.message || 'Registration failed.');
+        return;
+      }
 
       addToast(
         role === 'Doctor'
@@ -76,12 +97,13 @@ const RegisterPage = () => {
       );
       navigate('/login');
     } catch (err) {
-      const msg = err.code === 'auth/email-already-in-use'
-        ? 'This email is already registered.'
-        : err.code === 'auth/weak-password'
-        ? 'Password is too weak. Use at least 6 characters.'
-        : err.message || 'Registration failed. Please try again.';
-      addToast(msg, 'error');
+      if (err.code === 'auth/email-already-in-use') {
+        setFormError('This email is already in use. Please log in or use a different email.');
+      } else if (err.code === 'auth/weak-password') {
+        setFormError('Password is too weak. Use at least 8 characters.');
+      } else {
+        setFormError(err.message || 'Registration failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -110,6 +132,16 @@ const RegisterPage = () => {
           <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-2xl p-8 space-y-6"
             style={{ boxShadow: '0 0 60px rgba(0,180,255,0.06), 0 8px 32px rgba(0,0,0,0.4)' }}>
 
+            {/* ── Error Alert Box ── */}
+            {formError && (
+              <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 animate-slide-up">
+                <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <p className="text-sm text-red-300 font-medium leading-snug">{formError}</p>
+              </div>
+            )}
+
             {/* Role Toggle */}
             <div>
               <p className="block text-xs font-semibold text-cyan-400 mb-3 uppercase tracking-wider">I am a</p>
@@ -128,15 +160,25 @@ const RegisterPage = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-              <FormField label="Full Name" id="reg-name" name="name" type="text" placeholder="Dr. Sarah Ahmed" value={form.name} onChange={handleChange} icon={<IconUser />} autoComplete="name" />
+              <FormField label="Full Name" id="reg-name" name="name" type="text" placeholder="Please enter your name" value={form.name} onChange={handleChange} icon={<IconUser />} autoComplete="name" />
               <FormField label="Email Address" id="reg-email" name="email" type="email" placeholder="you@hospital.com" value={form.email} onChange={handleChange} icon={<IconMail />} autoComplete="email" />
 
-              {/* Password with show/hide */}
+              {/* Password with show/hide + info tooltip */}
               <div>
-                <label htmlFor="reg-password" className="block text-xs font-semibold text-cyan-400 mb-2 uppercase tracking-wider">Password</label>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <label htmlFor="reg-password" className="block text-xs font-semibold text-cyan-400 uppercase tracking-wider">Password</label>
+                  <div className="relative group">
+                    <span className="text-gray-500 hover:text-cyan-400 transition-colors cursor-help"><IconInfo /></span>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 border border-white/10 text-xs text-gray-300 whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50"
+                      style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+                      Minimum 8 characters, at least 1 uppercase letter, and 1 special character
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-gray-900 border-r border-b border-white/10" />
+                    </div>
+                  </div>
+                </div>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"><IconLock /></span>
-                  <input id="reg-password" name="password" type={showPass ? 'text' : 'password'} placeholder="Min. 6 characters"
+                  <input id="reg-password" name="password" type={showPass ? 'text' : 'password'} placeholder="Min. 8 characters"
                     value={form.password} onChange={handleChange} autoComplete="new-password"
                     className={inputCls.replace('pr-4', 'pr-11')} />
                   <button type="button" onClick={() => setShowPass((p) => !p)}

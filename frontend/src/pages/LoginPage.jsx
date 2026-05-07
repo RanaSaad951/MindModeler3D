@@ -4,6 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
 
+/* ── Inline SVG info icon ───────────────────────────────── */
+const IconInfo = () => <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+
 const LoginPage = () => {
   const { login } = useAuth();
   const { addToast } = useToast();
@@ -12,13 +15,20 @@ const LoginPage = () => {
   const [form, setForm]       = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [formError, setFormError] = useState('');
 
-  const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    setFormError('');
+    setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setFormError('');
+
     if (!form.email.trim() || !form.password.trim()) {
-      return addToast('Please enter your email and password.', 'error');
+      setFormError('Please enter your email and password.');
+      return;
     }
 
     setLoading(true);
@@ -43,13 +53,13 @@ const LoginPage = () => {
       addToast(`Welcome back, ${mongoProfile.name}!`, 'success');
       navigate('/dashboard');
     } catch (err) {
-      const msg =
-        err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential'
-          ? 'Invalid email or password.'
-          : err.code === 'auth/too-many-requests'
-          ? 'Too many failed attempts. Please try again later.'
-          : 'Sign in failed. Please try again.';
-      addToast(msg, 'error');
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setFormError('Invalid email or password.');
+      } else if (err.code === 'auth/too-many-requests') {
+        setFormError('Too many failed attempts. Please try again later.');
+      } else {
+        setFormError(err.message || 'Sign in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -83,6 +93,16 @@ const LoginPage = () => {
           <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-2xl p-8 space-y-6"
             style={{ boxShadow: '0 0 60px rgba(0,180,255,0.06), 0 8px 32px rgba(0,0,0,0.4)' }}>
 
+            {/* ── Error Alert Box ── */}
+            {formError && (
+              <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 animate-slide-up">
+                <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <p className="text-sm text-red-300 font-medium leading-snug">{formError}</p>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-5" noValidate>
 
               {/* Email */}
@@ -99,7 +119,17 @@ const LoginPage = () => {
 
               {/* Password */}
               <div>
-                <label htmlFor="login-password" className="block text-xs font-semibold text-cyan-400 mb-2 uppercase tracking-wider">Password</label>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <label htmlFor="login-password" className="block text-xs font-semibold text-cyan-400 uppercase tracking-wider">Password</label>
+                  <div className="relative group">
+                    <span className="text-gray-500 hover:text-cyan-400 transition-colors cursor-help"><IconInfo /></span>
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 rounded-lg bg-gray-900 border border-white/10 text-xs text-gray-300 whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none z-50"
+                      style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+                      Minimum 8 characters, at least 1 uppercase letter, and 1 special character
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-gray-900 border-r border-b border-white/10" />
+                    </div>
+                  </div>
+                </div>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
@@ -115,6 +145,13 @@ const LoginPage = () => {
                     }
                   </button>
                 </div>
+              </div>
+
+              {/* Forgot Password */}
+              <div className="flex justify-end -mt-1">
+                <Link to="/forgot-password" className="text-xs text-gray-500 hover:text-cyan-400 font-medium transition-colors">
+                  Forgot Password?
+                </Link>
               </div>
 
               {/* Submit */}

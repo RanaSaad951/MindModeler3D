@@ -25,6 +25,17 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    // ── PMDC uniqueness check for Doctors ─────────────────
+    if (role === 'Doctor' && pmdcNumber) {
+      const pmdcExists = await User.findOne({ pmdcNumber: pmdcNumber.trim() });
+      if (pmdcExists) {
+        return res.status(400).json({
+          success: false,
+          message: 'This PMDC number is already registered.',
+        });
+      }
+    }
+
     const newUser = new User({
       firebaseUid,
       name,
