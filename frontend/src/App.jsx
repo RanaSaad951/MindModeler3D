@@ -74,9 +74,9 @@ function App() {
           <Route path="/doctor-settings"
             element={<ProtectedRoute requireAuth requireDoctorProfile><DoctorSettings /></ProtectedRoute>} />
 
-          {/* ── Legacy doctor/admin dashboard ─────────────── */}
+          {/* ── Central redirector — bounces users to their role-specific dashboard ── */}
           <Route path="/dashboard"
-            element={<ProtectedRoute requireAuth requireApproved><DashboardPage /></ProtectedRoute>} />
+            element={<ProtectedRoute requireAuth><DashboardPage /></ProtectedRoute>} />
 
           {/* ── Admin dashboard ───────────────────────────── */}
           <Route path="/admin"

@@ -71,6 +71,7 @@ const Navbar = () => {
     '/privacy-policy', '/terms', '/forgot-password',
     '/patient-dashboard', '/complete-profile', '/patient-settings',
     '/doctor-dashboard', '/complete-doctor-profile', '/doctor-settings',
+    '/admin',
   ];
   if (hideOn.includes(location.pathname)) return null;
 

@@ -31,14 +31,20 @@ const ProtectedRoute = ({
     return <Navigate to="/login" replace />;
   }
 
-  // ── 2. Admin-only route ──────────────────────────────────────
+  // ── 2. Admin bypass — admins skip ALL role-specific gates ────
+  //    Admin may not have a MongoDB profile, so doctor/patient
+  //    checks (approval, profile-complete) must never block them.
+  if (firebaseUser && isAdmin) {
+    // If this is an admin-only route, allow through
+    // If this is ANY other protected route, also allow through
+    return children;
+  }
+
+  // ── 3. Admin-only route (non-admin user trying to access) ───
   if (requireAdmin) {
     if (!firebaseUser) return <Navigate to="/login" replace />;
-    if (!isAdmin) {
-      console.warn(`[ProtectedRoute] Access denied to /admin for ${firebaseUser.email}. Required: ${ADMIN_EMAIL}`);
-      return <Navigate to="/dashboard" replace />;
-    }
-    return children;
+    console.warn(`[ProtectedRoute] Access denied to /admin for ${firebaseUser.email}. Required: ${ADMIN_EMAIL}`);
+    return <Navigate to="/dashboard" replace />;
   }
 
   // ── 3. Doctor profile onboarding gate ───────────────────────

@@ -1,46 +1,75 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
+import {
+  FiHome, FiSettings, FiLogOut, FiMenu, FiX, FiBox,
+  FiUsers, FiUserCheck, FiUserX, FiUser, FiActivity,
+  FiShield, FiRefreshCw, FiClock, FiCheckCircle,
+} from 'react-icons/fi';
 
 /* ── Helpers ───────────────────────────────────────────────── */
 const formatDate = (iso) =>
   new Date(iso).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
 
+/* ── Sidebar Nav Items ─────────────────────────────────────── */
+const navItems = [
+  { label: 'Dashboard',      icon: FiHome,      id: 'admin-nav-dashboard' },
+  { label: 'Doctor Requests', icon: FiUsers,     id: 'admin-nav-doctors'  },
+  { label: 'Settings',        icon: FiSettings,  id: 'admin-nav-settings' },
+];
+
+/* ── Empty State ───────────────────────────────────────────── */
 const EmptyState = () => (
-  <div className="text-center py-16 space-y-3">
-    <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 mb-2">
-      <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
+  <div className="text-center py-20 space-y-4">
+    <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl border mb-3"
+      style={{ background: 'rgba(52,211,153,0.06)', borderColor: 'rgba(52,211,153,0.15)' }}>
+      <FiCheckCircle className="w-8 h-8 text-emerald-400" />
     </div>
-    <p className="text-slate-300 font-semibold">All caught up!</p>
-    <p className="text-slate-500 text-sm">No doctors are currently awaiting approval.</p>
+    <p className="text-slate-300 font-semibold text-lg">All caught up!</p>
+    <p className="text-slate-500 text-sm max-w-xs mx-auto">
+      No doctors are currently awaiting approval. New applications will appear here automatically.
+    </p>
   </div>
 );
 
 /* ── Main Component ────────────────────────────────────────── */
 const AdminDashboard = () => {
-  const { firebaseUser, BACKEND_URL } = useAuth();
+  const { firebaseUser, BACKEND_URL, logout } = useAuth();
   const { addToast } = useToast();
+  const navigate = useNavigate();
 
-  const [doctors,   setDoctors]   = useState([]);
-  const [fetching,  setFetching]  = useState(true);
-  const [approving, setApproving] = useState(null);  // firebaseUid being approved
+  const [doctors,      setDoctors]      = useState([]);
+  const [stats,        setStats]        = useState({ totalDoctors: 0, pendingDoctors: 0, approvedDoctors: 0, totalPatients: 0 });
+  const [fetching,     setFetching]     = useState(true);
+  const [actionUid,    setActionUid]    = useState(null); // uid currently being processed
+  const [activeNav,    setActiveNav]    = useState('Dashboard');
+  const [sidebarOpen,  setSidebarOpen]  = useState(false);
 
   /* ── Fetch pending doctors ───────────────────────────────── */
   const fetchPendingDoctors = useCallback(async () => {
     setFetching(true);
     try {
       const token = await firebaseUser.getIdToken();
-      const res   = await fetch(`${BACKEND_URL}/api/admin/pending-doctors`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setDoctors(data.doctors);
+      const [doctorsRes, statsRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/admin/pending-doctors`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${BACKEND_URL}/api/admin/stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      const doctorsData = await doctorsRes.json();
+      const statsData   = await statsRes.json();
+
+      if (!doctorsRes.ok) throw new Error(doctorsData.message);
+      setDoctors(doctorsData.doctors);
+
+      if (statsRes.ok) setStats(statsData.stats);
     } catch (err) {
-      addToast(err.message || 'Failed to fetch pending doctors.', 'error');
+      addToast(err.message || 'Failed to fetch data.', 'error');
     } finally {
       setFetching(false);
     }
@@ -50,169 +79,363 @@ const AdminDashboard = () => {
 
   /* ── Approve a doctor ────────────────────────────────────── */
   const handleApprove = async (uid, name) => {
-    setApproving(uid);
+    setActionUid(uid);
     try {
       const token = await firebaseUser.getIdToken();
-      const res   = await fetch(`${BACKEND_URL}/api/admin/approve/${uid}`, {
-        method:  'PUT',
+      const res = await fetch(`${BACKEND_URL}/api/admin/approve/${uid}`, {
+        method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
+
+      // Instant UI update
       setDoctors((prev) => prev.filter((d) => d.firebaseUid !== uid));
+      setStats((prev) => ({
+        ...prev,
+        pendingDoctors: Math.max(0, prev.pendingDoctors - 1),
+        approvedDoctors: prev.approvedDoctors + 1,
+      }));
       addToast(`Dr. ${name} has been approved successfully.`, 'success');
     } catch (err) {
-      addToast(err.message || 'Approval failed. Please try again.', 'error');
+      addToast(err.message || 'Approval failed.', 'error');
     } finally {
-      setApproving(null);
+      setActionUid(null);
     }
   };
 
+  /* ── Reject a doctor ─────────────────────────────────────── */
+  const handleReject = async (uid, name) => {
+    if (!window.confirm(`Are you sure you want to reject Dr. ${name}'s application? This action cannot be undone.`)) return;
+
+    setActionUid(uid);
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch(`${BACKEND_URL}/api/admin/reject/${uid}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      // Instant UI update
+      setDoctors((prev) => prev.filter((d) => d.firebaseUid !== uid));
+      setStats((prev) => ({
+        ...prev,
+        pendingDoctors: Math.max(0, prev.pendingDoctors - 1),
+        totalDoctors: Math.max(0, prev.totalDoctors - 1),
+      }));
+      addToast(`Dr. ${name}'s application has been rejected.`, 'success');
+    } catch (err) {
+      addToast(err.message || 'Rejection failed.', 'error');
+    } finally {
+      setActionUid(null);
+    }
+  };
+
+  const handleLogout = async () => { await logout(); navigate('/login'); };
+
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
+
+  /* ── Stats card config ───────────────────────────────────── */
+  const statCards = [
+    {
+      label: 'Total Doctors',
+      value: stats.totalDoctors,
+      icon: FiUsers,
+      gradient: 'from-cyan-500/15 to-cyan-600/5',
+      border: 'border-cyan-500/20',
+      hoverBorder: 'hover:border-cyan-500/35',
+      text: 'text-cyan-400',
+    },
+    {
+      label: 'Pending Approval',
+      value: stats.pendingDoctors,
+      icon: FiClock,
+      gradient: 'from-amber-500/15 to-yellow-600/5',
+      border: 'border-amber-500/20',
+      hoverBorder: 'hover:border-amber-500/35',
+      text: 'text-amber-400',
+    },
+    {
+      label: 'Approved',
+      value: stats.approvedDoctors,
+      icon: FiUserCheck,
+      gradient: 'from-emerald-500/15 to-green-600/5',
+      border: 'border-emerald-500/20',
+      hoverBorder: 'hover:border-emerald-500/35',
+      text: 'text-emerald-400',
+    },
+    {
+      label: 'Total Patients',
+      value: stats.totalPatients,
+      icon: FiActivity,
+      gradient: 'from-violet-500/15 to-purple-600/5',
+      border: 'border-violet-500/20',
+      hoverBorder: 'hover:border-violet-500/35',
+      text: 'text-violet-400',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-grid-pattern py-10 px-4">
-      <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
+    <div id="premium-admin-dashboard-v2" data-version="2.0" className="min-h-screen bg-[#050505] flex relative text-white">
 
-        {/* ── Page header ─────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="badge-cyan">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                Administrator
-              </span>
+      {/* ── Mobile overlay ──────────────────────────────────── */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          SIDEBAR — identical structure to DoctorDashboard
+         ══════════════════════════════════════════════════════ */}
+      <aside className={`fixed lg:sticky top-0 left-0 z-50 lg:z-auto h-screen w-[260px] flex flex-col
+        bg-white/[0.03] backdrop-blur-md border-r border-white/[0.08] transition-transform duration-300
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+
+        {/* Brand */}
+        <div className="flex items-center justify-between px-6 pt-7 pb-6">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg,#06b6d4,#0284c7)' }}>
+              <FiBox className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-white">Doctor Approval Queue</h1>
-            <p className="text-slate-400 text-sm mt-0.5">
-              Review and approve PMDC-registered physicians awaiting platform access.
-            </p>
+            <div>
+              <h1 className="text-base font-bold">
+                <span className="text-cyan-400">Mind</span>{' '}
+                <span className="text-white">Modeler</span>
+              </h1>
+              <p className="text-[10px] text-slate-500 font-medium tracking-widest uppercase">Admin Panel</p>
+            </div>
           </div>
-
-          <button
-            id="admin-refresh-btn"
-            onClick={fetchPendingDoctors}
-            disabled={fetching}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 transition-all border border-white/10 hover:border-white/20 hover:bg-white/5 disabled:opacity-50 shrink-0"
-          >
-            <svg className={`w-4 h-4 ${fetching ? 'animate-spin-slow' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
+          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-slate-400 hover:text-white transition-colors">
+            <FiX className="w-5 h-5" />
           </button>
         </div>
 
-        {/* ── Stats bar ───────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { label: 'Pending Approval', value: doctors.length, color: 'amber', icon: '⏳' },
-            { label: 'Reviewed Today',   value: '—',            color: 'cyan',  icon: '✅' },
-            { label: 'Admin Account',    value: 'You',          color: 'emerald', icon: '🛡️' },
-          ].map((s) => (
-            <div key={s.label} className="glass-card p-4 flex items-center gap-4">
-              <span className="text-2xl">{s.icon}</span>
-              <div>
-                <p className="text-2xl font-bold text-white">{s.value}</p>
-                <p className="text-xs text-slate-500 font-medium">{s.label}</p>
-              </div>
+        {/* Nav items */}
+        <nav className="flex-1 px-3 space-y-1">
+          {navItems.map(({ label, icon: Icon, id }) => {
+            const isActive = activeNav === label;
+            return (
+              <button key={id} id={id}
+                onClick={() => { setActiveNav(label); setSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group
+                  ${isActive
+                    ? 'text-cyan-400 bg-cyan-500/[0.08] border border-cyan-500/20'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border border-transparent'
+                  }`}>
+                <Icon className={`w-[18px] h-[18px] ${isActive ? 'text-cyan-400' : 'text-slate-500 group-hover:text-slate-300'}`} />
+                {label}
+                {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Admin user footer */}
+        <div className="px-3 pb-6">
+          <div className="border-t border-white/[0.06] pt-4 mb-3" />
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-3">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center">
+              <FiShield className="w-4 h-4 text-cyan-400" />
             </div>
-          ))}
-        </div>
-
-        {/* ── Table card ──────────────────────────────────── */}
-        <div className="glass-card overflow-hidden"
-          style={{ boxShadow: '0 0 0 1px rgba(34,211,238,0.08), 0 25px 60px rgba(0,0,0,0.4)' }}>
-
-          {/* Table header */}
-          <div className="px-6 py-4 border-b border-white/[0.06]">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-sm font-semibold text-slate-300">Pending Doctors</span>
-              {!fetching && (
-                <span className="ml-auto badge-amber">{doctors.length} pending</span>
-              )}
+            <div className="overflow-hidden">
+              <p className="text-xs font-semibold text-white truncate">Administrator</p>
+              <p className="text-[10px] text-slate-500 truncate">{firebaseUser?.email}</p>
             </div>
           </div>
-
-          {fetching ? (
-            <div className="py-16">
-              <LoadingSpinner message="Loading pending doctors…" />
-            </div>
-          ) : doctors.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/[0.05]">
-                    {['Physician', 'Contact', 'PMDC Number', 'Applied', 'Action'].map((h) => (
-                      <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.04]">
-                  {doctors.map((doc) => (
-                    <tr
-                      key={doc.firebaseUid}
-                      className="hover:bg-white/[0.02] transition-colors group"
-                    >
-                      {/* Name + avatar */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-cyan-300"
-                            style={{ background: 'linear-gradient(135deg,rgba(6,182,212,0.2),rgba(2,132,199,0.2))', border: '1px solid rgba(34,211,238,0.15)' }}>
-                            {doc.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-slate-200">Dr. {doc.name}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Email */}
-                      <td className="px-6 py-4 text-slate-400 text-xs">{doc.email}</td>
-
-                      {/* PMDC */}
-                      <td className="px-6 py-4">
-                        <span className="font-mono text-xs px-2.5 py-1 rounded-lg text-cyan-300"
-                          style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.12)' }}>
-                          {doc.pmdcNumber || '—'}
-                        </span>
-                      </td>
-
-                      {/* Date */}
-                      <td className="px-6 py-4 text-slate-500 text-xs">{formatDate(doc.createdAt)}</td>
-
-                      {/* Approve button */}
-                      <td className="px-6 py-4">
-                        <button
-                          id={`approve-btn-${doc.firebaseUid}`}
-                          onClick={() => handleApprove(doc.firebaseUid, doc.name)}
-                          disabled={approving === doc.firebaseUid}
-                          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}
-                        >
-                          {approving === doc.firebaseUid ? (
-                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                          {approving === doc.firebaseUid ? 'Approving…' : 'Approve'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <button id="admin-signout-btn" onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-400 hover:text-red-400 hover:bg-red-500/[0.06] border border-transparent hover:border-red-500/20 transition-all duration-200 group">
+            <FiLogOut className="w-[18px] h-[18px] text-slate-500 group-hover:text-red-400 transition-colors" />
+            Sign Out
+          </button>
         </div>
+      </aside>
 
-      </div>
+      {/* ══════════════════════════════════════════════════════
+          MAIN CONTENT
+         ══════════════════════════════════════════════════════ */}
+      <main className="flex-1 min-h-screen overflow-y-auto">
+
+        {/* ── Sticky Header ─────────────────────────────────── */}
+        <header className="sticky top-0 z-30 bg-[#050505]/80 backdrop-blur-lg border-b border-white/[0.06]">
+          <div className="flex items-center justify-between px-6 lg:px-10 py-4">
+            <div className="flex items-center gap-4">
+              <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-slate-400 hover:text-white transition-colors">
+                <FiMenu className="w-5 h-5" />
+              </button>
+              <div>
+                <p className="text-xs text-slate-500">{greeting()},</p>
+                <h2 className="text-lg font-bold text-white">
+                  <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Admin</span> Dashboard
+                </h2>
+              </div>
+            </div>
+            <button
+              id="admin-refresh-btn"
+              onClick={fetchPendingDoctors}
+              disabled={fetching}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 transition-all border border-white/10 hover:border-cyan-500/30 hover:bg-cyan-500/[0.04] disabled:opacity-50 shrink-0"
+            >
+              <FiRefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+        </header>
+
+        <div className="px-6 lg:px-10 py-8 space-y-7 animate-fade-in">
+
+          {/* ── Stats Grid ──────────────────────────────────── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {statCards.map((s) => (
+              <div key={s.label}
+                className={`bg-white/[0.03] backdrop-blur-md border ${s.border} ${s.hoverBorder} rounded-2xl p-6 transition-all duration-300 group`}
+                style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.02)' }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${s.gradient} border ${s.border} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <s.icon className={`w-5 h-5 ${s.text}`} />
+                  </div>
+                </div>
+                <p className="text-3xl font-extrabold text-white tracking-tight">{fetching ? '—' : s.value}</p>
+                <p className="text-sm font-medium text-slate-400 mt-1">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Doctor Requests Table Card ───────────────────── */}
+          <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.10] rounded-2xl overflow-hidden"
+            style={{ boxShadow: '0 0 0 1px rgba(34,211,238,0.08), 0 25px 60px rgba(0,0,0,0.4)' }}>
+
+            {/* Table header */}
+            <div className="flex items-center justify-between px-6 lg:px-8 py-5 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500/15 to-orange-600/5 border border-amber-500/20 flex items-center justify-center">
+                  <FiUsers className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Doctor Requests</h3>
+                  <p className="text-xs text-slate-500">Review and manage physician applications</p>
+                </div>
+              </div>
+              {!fetching && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-amber-300"
+                  style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  {doctors.length} pending
+                </span>
+              )}
+            </div>
+
+            {/* Table body */}
+            {fetching ? (
+              <div className="py-20">
+                <LoadingSpinner message="Loading pending doctors…" />
+              </div>
+            ) : doctors.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-white/[0.05]">
+                      {['Physician', 'Contact', 'PMDC Number', 'Applied', 'Actions'].map((h) => (
+                        <th key={h} className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.04]">
+                    {doctors.map((doc) => (
+                      <tr key={doc.firebaseUid} className="hover:bg-white/[0.02] transition-colors group">
+
+                        {/* Name + Avatar */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-cyan-300"
+                              style={{
+                                background: 'linear-gradient(135deg,rgba(6,182,212,0.2),rgba(2,132,199,0.2))',
+                                border: '1px solid rgba(34,211,238,0.15)',
+                              }}>
+                              {doc.name?.charAt(0).toUpperCase() || '?'}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-200">Dr. {doc.name}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Email */}
+                        <td className="px-6 py-4 text-slate-400 text-xs">{doc.email}</td>
+
+                        {/* PMDC */}
+                        <td className="px-6 py-4">
+                          <span className="font-mono text-xs px-2.5 py-1 rounded-lg text-cyan-300"
+                            style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.12)' }}>
+                            {doc.pmdcNumber || '—'}
+                          </span>
+                        </td>
+
+                        {/* Date */}
+                        <td className="px-6 py-4 text-slate-500 text-xs">{formatDate(doc.createdAt)}</td>
+
+                        {/* Actions */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            {/* Approve */}
+                            <button
+                              id={`approve-btn-${doc.firebaseUid}`}
+                              onClick={() => handleApprove(doc.firebaseUid, doc.name)}
+                              disabled={actionUid === doc.firebaseUid}
+                              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5"
+                              style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}
+                            >
+                              {actionUid === doc.firebaseUid ? (
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <FiUserCheck className="w-3.5 h-3.5" />
+                              )}
+                              Approve
+                            </button>
+
+                            {/* Reject */}
+                            <button
+                              id={`reject-btn-${doc.firebaseUid}`}
+                              onClick={() => handleReject(doc.firebaseUid, doc.name)}
+                              disabled={actionUid === doc.firebaseUid}
+                              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5"
+                              style={{
+                                background: 'rgba(239,68,68,0.1)',
+                                border: '1px solid rgba(239,68,68,0.2)',
+                                color: '#f87171',
+                              }}
+                            >
+                              <FiUserX className="w-3.5 h-3.5" />
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* ── Footer ──────────────────────────────────────── */}
+          <div className="text-center pb-4">
+            <p className="text-xs text-slate-600">🔒 256-bit SSL · HIPAA Compliant · Mind Modeler 3D v1.0</p>
+          </div>
+
+        </div>
+      </main>
     </div>
   );
 };

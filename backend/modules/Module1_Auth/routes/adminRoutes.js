@@ -49,4 +49,53 @@ router.put('/approve/:firebaseUid', adminAuth, async (req, res) => {
   }
 });
 
+// ─── PUT /api/admin/reject/:firebaseUid ───────────────────────
+// Rejects (deletes) a doctor account
+router.put('/reject/:firebaseUid', adminAuth, async (req, res) => {
+  try {
+    const user = await User.findOneAndDelete({
+      firebaseUid: req.params.firebaseUid,
+      role: 'Doctor',
+      isApprovedByAdmin: false,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Doctor not found or already processed.',
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Dr. ${user.name}'s application has been rejected.`,
+    });
+  } catch (err) {
+    console.error('Reject doctor error:', err);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// ─── GET /api/admin/stats ─────────────────────────────────────
+// Returns dashboard statistics
+router.get('/stats', adminAuth, async (req, res) => {
+  try {
+    const [totalDoctors, pendingDoctors, approvedDoctors, totalPatients] =
+      await Promise.all([
+        User.countDocuments({ role: 'Doctor' }),
+        User.countDocuments({ role: 'Doctor', isApprovedByAdmin: false }),
+        User.countDocuments({ role: 'Doctor', isApprovedByAdmin: true }),
+        User.countDocuments({ role: 'Patient' }),
+      ]);
+
+    res.json({
+      success: true,
+      stats: { totalDoctors, pendingDoctors, approvedDoctors, totalPatients },
+    });
+  } catch (err) {
+    console.error('Admin stats error:', err);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
 module.exports = router;
