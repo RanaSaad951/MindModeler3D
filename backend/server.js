@@ -7,6 +7,9 @@ const mongoose = require('mongoose');
 const userRoutes = require('./modules/Module1_Auth/routes/userRoutes');
 const adminRoutes = require('./modules/Module1_Auth/routes/adminRoutes');
 
+// ─── Module 2: Upload ─────────────────────────────────────────
+const uploadRoutes = require('./modules/Module2_Upload/routes/uploadRoutes');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -20,6 +23,7 @@ app.use(express.json());
 // ─── Routes ───────────────────────────────────────────────────
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/scans', uploadRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({

@@ -17,6 +17,7 @@ const formatDate = (iso) =>
 const navItems = [
   { label: 'Dashboard',      icon: FiHome,      id: 'admin-nav-dashboard' },
   { label: 'Doctor Requests', icon: FiUsers,     id: 'admin-nav-doctors'  },
+  { label: 'Manage Users',    icon: FiUser,      id: 'admin-nav-manage-users' },
   { label: 'Settings',        icon: FiSettings,  id: 'admin-nav-settings' },
 ];
 
@@ -41,8 +42,10 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
 
   const [doctors,      setDoctors]      = useState([]);
+  const [allUsers,     setAllUsers]     = useState([]);
   const [stats,        setStats]        = useState({ totalDoctors: 0, pendingDoctors: 0, approvedDoctors: 0, totalPatients: 0 });
   const [fetching,     setFetching]     = useState(true);
+  const [fetchingUsers,setFetchingUsers]= useState(false);
   const [actionUid,    setActionUid]    = useState(null); // uid currently being processed
   const [activeNav,    setActiveNav]    = useState('Dashboard');
   const [sidebarOpen,  setSidebarOpen]  = useState(false);
@@ -76,6 +79,62 @@ const AdminDashboard = () => {
   }, [firebaseUser, BACKEND_URL, addToast]);
 
   useEffect(() => { fetchPendingDoctors(); }, [fetchPendingDoctors]);
+
+  /* ── Fetch all users ─────────────────────────────────────── */
+  const fetchAllUsers = useCallback(async () => {
+    setFetchingUsers(true);
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch(`${BACKEND_URL}/api/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+      setAllUsers(data.users);
+    } catch (err) {
+      addToast(err.message || 'Failed to fetch users.', 'error');
+    } finally {
+      setFetchingUsers(false);
+    }
+  }, [firebaseUser, BACKEND_URL, addToast]);
+
+  useEffect(() => {
+    if (activeNav === 'Manage Users') fetchAllUsers();
+  }, [activeNav, fetchAllUsers]);
+
+  /* ── Delete a user ───────────────────────────────────────── */
+  const handleDeleteUser = async (uid, name) => {
+    if (!window.confirm(`Are you sure you want to delete ${name}? This action is permanent and cannot be undone.`)) return;
+
+    setActionUid(uid);
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch(`${BACKEND_URL}/api/admin/users/${uid}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      setAllUsers((prev) => prev.filter((u) => u.firebaseUid !== uid));
+      addToast(`${name} has been deleted successfully.`, 'success');
+      
+      // Update stats dynamically
+      setStats((prev) => {
+        const isDoctor = allUsers.find(u => u.firebaseUid === uid)?.role === 'Doctor';
+        return {
+          ...prev,
+          totalDoctors: isDoctor ? Math.max(0, prev.totalDoctors - 1) : prev.totalDoctors,
+          approvedDoctors: isDoctor ? Math.max(0, prev.approvedDoctors - 1) : prev.approvedDoctors,
+          totalPatients: !isDoctor ? Math.max(0, prev.totalPatients - 1) : prev.totalPatients,
+        };
+      });
+    } catch (err) {
+      addToast(err.message || 'Failed to delete user.', 'error');
+    } finally {
+      setActionUid(null);
+    }
+  };
 
   /* ── Approve a doctor ────────────────────────────────────── */
   const handleApprove = async (uid, name) => {
@@ -279,11 +338,11 @@ const AdminDashboard = () => {
             </div>
             <button
               id="admin-refresh-btn"
-              onClick={fetchPendingDoctors}
-              disabled={fetching}
+              onClick={activeNav === 'Manage Users' ? fetchAllUsers : fetchPendingDoctors}
+              disabled={fetching || fetchingUsers}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-slate-300 transition-all border border-white/10 hover:border-cyan-500/30 hover:bg-cyan-500/[0.04] disabled:opacity-50 shrink-0"
             >
-              <FiRefreshCw className={`w-4 h-4 ${fetching ? 'animate-spin' : ''}`} />
+              <FiRefreshCw className={`w-4 h-4 ${(fetching || fetchingUsers) ? 'animate-spin' : ''}`} />
               Refresh
             </button>
           </div>
@@ -291,26 +350,33 @@ const AdminDashboard = () => {
 
         <div className="px-6 lg:px-10 py-8 space-y-7 animate-fade-in">
 
-          {/* ── Stats Grid ──────────────────────────────────── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {statCards.map((s) => (
-              <div key={s.label}
-                className={`bg-white/[0.03] backdrop-blur-md border ${s.border} ${s.hoverBorder} rounded-2xl p-6 transition-all duration-300 group`}
-                style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.02)' }}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${s.gradient} border ${s.border} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
-                    <s.icon className={`w-5 h-5 ${s.text}`} />
+          {/* ── Dashboard & Doctor Requests View ──────────────── */}
+          {(activeNav === 'Dashboard' || activeNav === 'Doctor Requests') && (
+            <>
+              {activeNav === 'Dashboard' && (
+                <>
+                  {/* ── Stats Grid ──────────────────────────────────── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    {statCards.map((s) => (
+                      <div key={s.label}
+                        className={`bg-white/[0.03] backdrop-blur-md border ${s.border} ${s.hoverBorder} rounded-2xl p-6 transition-all duration-300 group`}
+                        style={{ boxShadow: '0 0 0 1px rgba(255,255,255,0.02)' }}>
+                        <div className="flex items-center justify-between mb-4">
+                          <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${s.gradient} border ${s.border} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                            <s.icon className={`w-5 h-5 ${s.text}`} />
+                          </div>
+                        </div>
+                        <p className="text-3xl font-extrabold text-white tracking-tight">{fetching ? '—' : s.value}</p>
+                        <p className="text-sm font-medium text-slate-400 mt-1">{s.label}</p>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <p className="text-3xl font-extrabold text-white tracking-tight">{fetching ? '—' : s.value}</p>
-                <p className="text-sm font-medium text-slate-400 mt-1">{s.label}</p>
-              </div>
-            ))}
-          </div>
+                </>
+              )}
 
-          {/* ── Doctor Requests Table Card ───────────────────── */}
-          <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.10] rounded-2xl overflow-hidden"
-            style={{ boxShadow: '0 0 0 1px rgba(34,211,238,0.08), 0 25px 60px rgba(0,0,0,0.4)' }}>
+              {/* ── Doctor Requests Table Card ───────────────────── */}
+              <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.10] rounded-2xl overflow-hidden"
+                style={{ boxShadow: '0 0 0 1px rgba(34,211,238,0.08), 0 25px 60px rgba(0,0,0,0.4)' }}>
 
             {/* Table header */}
             <div className="flex items-center justify-between px-6 lg:px-8 py-5 border-b border-white/[0.06]">
@@ -428,6 +494,108 @@ const AdminDashboard = () => {
               </div>
             )}
           </div>
+          </>
+          )}
+
+          {/* ── Manage Users View ─────────────────────────────── */}
+          {activeNav === 'Manage Users' && (
+            <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.10] rounded-2xl overflow-hidden animate-fade-in"
+              style={{ boxShadow: '0 0 0 1px rgba(167,139,250,0.08), 0 25px 60px rgba(0,0,0,0.4)' }}>
+
+              <div className="flex items-center justify-between px-6 lg:px-8 py-5 border-b border-white/[0.06]">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500/15 to-purple-600/5 border border-violet-500/20 flex items-center justify-center">
+                    <FiUser className="w-4 h-4 text-violet-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white">All Users</h3>
+                    <p className="text-xs text-slate-500">Manage all approved patients and doctors</p>
+                  </div>
+                </div>
+                {!fetchingUsers && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-violet-300"
+                    style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)' }}>
+                    Total Users: {allUsers.length}
+                  </span>
+                )}
+              </div>
+
+              {fetchingUsers ? (
+                <div className="py-20">
+                  <LoadingSpinner message="Loading all users…" />
+                </div>
+              ) : allUsers.length === 0 ? (
+                <div className="text-center py-20 space-y-4">
+                  <p className="text-slate-300 font-semibold text-lg">No users found.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/[0.05]">
+                        {['Name', 'Email', 'Role', 'Status', 'Actions'].map((h) => (
+                          <th key={h} className="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.04]">
+                      {allUsers.map((user) => (
+                        <tr key={user.firebaseUid} className="hover:bg-white/[0.02] transition-colors group">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-violet-300"
+                                style={{
+                                  background: 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(124,58,237,0.2))',
+                                  border: '1px solid rgba(139,92,246,0.15)',
+                                }}>
+                                {user.name?.charAt(0).toUpperCase() || '?'}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-slate-200">{user.role === 'Doctor' ? `Dr. ${user.name}` : user.name}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-slate-400 text-xs">{user.email}</td>
+                          <td className="px-6 py-4">
+                            <span className={`font-medium text-xs px-2.5 py-1 rounded-lg ${user.role === 'Doctor' ? 'text-cyan-300 bg-cyan-500/10 border border-cyan-500/20' : 'text-violet-300 bg-violet-500/10 border border-violet-500/20'}`}>
+                              {user.role}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-medium text-xs px-2.5 py-1 rounded-lg text-emerald-300 bg-emerald-500/10 border border-emerald-500/20">
+                              Active
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <button
+                              id={`delete-btn-${user.firebaseUid}`}
+                              onClick={() => handleDeleteUser(user.firebaseUid, user.name)}
+                              disabled={actionUid === user.firebaseUid}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5"
+                              style={{
+                                background: 'rgba(239,68,68,0.1)',
+                                border: '1px solid rgba(239,68,68,0.2)',
+                                color: '#f87171',
+                              }}
+                            >
+                              {actionUid === user.firebaseUid ? (
+                                <div className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                              ) : (
+                                <FiUserX className="w-3.5 h-3.5" />
+                              )}
+                              Delete User
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Footer ──────────────────────────────────────── */}
           <div className="text-center pb-4">

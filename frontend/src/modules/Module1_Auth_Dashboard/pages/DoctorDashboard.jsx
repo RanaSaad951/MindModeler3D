@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { FiHome, FiFolder, FiUploadCloud, FiSettings, FiLogOut, FiBell, FiUser, FiActivity, FiMenu, FiX, FiBox, FiUsers, FiFileText } from 'react-icons/fi';
 import { HiOutlineUserCircle, HiOutlineShieldCheck, HiOutlineExclamation } from 'react-icons/hi';
+import UploadScanPage from '../../Module2_MRI_Upload/pages/UploadScanPage';
+
 
 const navItems = [
   { label: 'Dashboard',     icon: FiHome,       id: 'nav-dashboard' },
@@ -149,8 +151,9 @@ const DoctorDashboard = () => {
         </header>
 
         <div className="px-6 lg:px-10 py-8 space-y-7 animate-fade-in">
-
-          {/* ── APPROVAL WARNING BANNER ──────────────────────── */}
+          {activeNav === 'Dashboard' && (
+            <>
+              {/* ── APPROVAL WARNING BANNER ──────────────────────── */}
           {!isApproved && (
             <div id="approval-warning-banner"
               className="flex items-start gap-4 px-6 py-5 rounded-2xl border animate-slide-up"
@@ -252,14 +255,14 @@ const DoctorDashboard = () => {
             <div id="card-upload-mri"
               className={`bg-white/[0.03] border-2 border-dashed rounded-2xl p-8 flex flex-col items-center justify-center text-center min-h-[260px] transition-all duration-300 group
                 ${isApproved ? 'border-white/[0.12] hover:border-cyan-500/40 hover:bg-cyan-500/[0.02] cursor-pointer' : 'border-white/[0.06] opacity-60 cursor-not-allowed'}`}
-              onClick={() => isApproved && alert('Coming in Module 2')}>
+              onClick={() => isApproved && setActiveNav('Upload Scan')}>
               <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-blue-600/5 border border-cyan-500/20 flex items-center justify-center mb-5 transition-all duration-300 ${isApproved ? 'group-hover:scale-110 group-hover:shadow-[0_0_30px_rgba(6,182,212,0.15)]' : ''}`}>
                 <FiUploadCloud className="w-8 h-8 text-cyan-400" />
               </div>
               <h3 className="text-lg font-bold text-white mb-2">Upload MRI Scan</h3>
               <p className="text-sm text-slate-400 leading-relaxed mb-6 max-w-xs">Upload DICOM/NIfTI MRI files for AI-powered 3D reconstruction and anomaly detection.</p>
               <button id="upload-scan-btn" disabled={!isApproved}
-                onClick={(e) => { e.stopPropagation(); isApproved && alert('Coming in Module 2'); }}
+                onClick={(e) => { e.stopPropagation(); isApproved && setActiveNav('Upload Scan'); }}
                 className="px-7 py-2.5 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-cyan-500 to-blue-600 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 transition-all duration-200">
                 Upload Scan
               </button>
@@ -340,6 +343,12 @@ const DoctorDashboard = () => {
           <div className="text-center pb-4">
             <p className="text-xs text-slate-600">🔒 256-bit SSL · HIPAA Compliant · Mind Modeler 3D v1.0</p>
           </div>
+            </>
+          )}
+
+          {activeNav === 'Upload Scan' && (
+            <UploadScanPage />
+          )}
         </div>
       </main>
     </div>

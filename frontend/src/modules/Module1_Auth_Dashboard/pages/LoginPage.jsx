@@ -16,6 +16,8 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [formError, setFormError] = useState('');
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
 
   const handleChange = (e) => {
     setFormError('');
@@ -24,6 +26,7 @@ const LoginPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLocked) return;
     setFormError('');
 
     if (!form.email.trim() || !form.password.trim()) {
@@ -63,6 +66,7 @@ const LoginPage = () => {
       }
 
       addToast(`Welcome back, ${profile.name}!`, 'success');
+      setFailedAttempts(0);
 
       // ── Role-based redirect ──────────────────────────────────
       if (profile.role === 'Patient') {
@@ -84,9 +88,15 @@ const LoginPage = () => {
       // so keeping the spinner prevents any flash or double-click.
     } catch (err) {
       if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-        setFormError('Invalid email or password.');
+        const newAttempts = failedAttempts + 1;
+        setFailedAttempts(newAttempts);
+        if (newAttempts >= 5) {
+          setIsLocked(true);
+        } else {
+          setFormError('Invalid email or password.');
+        }
       } else if (err.code === 'auth/too-many-requests') {
-        setFormError('Too many failed attempts. Please try again later.');
+        setIsLocked(true);
       } else {
         setFormError(err.message || 'Sign in failed. Please try again.');
       }
@@ -95,7 +105,11 @@ const LoginPage = () => {
   };
 
   /* shared input classes */
-  const inputCls = 'w-full pl-11 pr-4 py-3.5 rounded-full text-sm text-black bg-white border border-gray-300 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 transition-all placeholder:text-gray-400';
+  const baseInputCls = 'w-full pl-11 py-3.5 rounded-full text-sm text-black border outline-none transition-all placeholder:text-gray-400';
+  const activeInputCls = 'bg-white border-gray-300 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30';
+  const lockedInputCls = 'bg-gray-200 border-gray-400 opacity-60 cursor-not-allowed text-gray-500';
+  const inputCls = `${baseInputCls} pr-4 ${isLocked ? lockedInputCls : activeInputCls}`;
+  const passwordInputCls = `${baseInputCls} pr-11 ${isLocked ? lockedInputCls : activeInputCls}`;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#050505]">
@@ -122,15 +136,24 @@ const LoginPage = () => {
           <div className="bg-black/50 backdrop-blur-xl border border-white/10 rounded-2xl p-8 space-y-6"
             style={{ boxShadow: '0 0 60px rgba(0,180,255,0.06), 0 8px 32px rgba(0,0,0,0.4)' }}>
 
-            {/* ── Error Alert Box ── */}
-            {formError && (
+            {/* ── Error / Lockout Alert Box ── */}
+            {isLocked ? (
+              <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 animate-slide-up">
+                <svg className="w-5 h-5 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <p className="text-sm text-red-300 font-medium leading-snug">
+                  Account locked due to 5 consecutive failed attempts. Please click 'Forgot Password' to reset your credentials and unlock your account.
+                </p>
+              </div>
+            ) : formError ? (
               <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 animate-slide-up">
                 <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
                 <p className="text-sm text-red-300 font-medium leading-snug">{formError}</p>
               </div>
-            )}
+            ) : null}
 
             <form onSubmit={handleSubmit} className="space-y-5" noValidate>
 
@@ -142,7 +165,7 @@ const LoginPage = () => {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                   </span>
                   <input id="login-email" name="email" type="email" placeholder="you@hospital.com"
-                    value={form.email} onChange={handleChange} autoComplete="email" className={inputCls} />
+                    value={form.email} onChange={handleChange} autoComplete="email" className={inputCls} disabled={isLocked} />
                 </div>
               </div>
 
@@ -165,7 +188,7 @@ const LoginPage = () => {
                   </span>
                   <input id="login-password" name="password" type={showPass ? 'text' : 'password'} placeholder="Your password"
                     value={form.password} onChange={handleChange} autoComplete="current-password"
-                    className={inputCls.replace('pr-4', 'pr-11')} />
+                    className={passwordInputCls} disabled={isLocked} />
                   <button type="button" onClick={() => setShowPass((p) => !p)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors" aria-label="Toggle password visibility">
                     {showPass
@@ -184,11 +207,13 @@ const LoginPage = () => {
               </div>
 
               {/* Submit */}
-              <button id="login-submit-btn" type="submit" disabled={loading}
-                className="w-full py-3.5 rounded-full text-sm font-bold bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 mt-2"
-                style={{ boxShadow: '0 0 20px rgba(255,255,255,0.1)' }}>
-                {loading ? <LoadingSpinner message="Authenticating…" /> : 'Sign In Securely'}
-              </button>
+              {!isLocked && (
+                <button id="login-submit-btn" type="submit" disabled={loading}
+                  className="w-full py-3.5 rounded-full text-sm font-bold bg-white text-black hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center gap-2 mt-2"
+                  style={{ boxShadow: '0 0 20px rgba(255,255,255,0.1)' }}>
+                  {loading ? <LoadingSpinner message="Authenticating…" /> : 'Sign In Securely'}
+                </button>
+              )}
             </form>
 
             {/* Divider */}

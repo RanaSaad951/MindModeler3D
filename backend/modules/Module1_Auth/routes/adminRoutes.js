@@ -98,4 +98,37 @@ router.get('/stats', adminAuth, async (req, res) => {
   }
 });
 
+// ─── GET /api/admin/users ─────────────────────────────────────
+// Returns all approved users (Patients and Approved Doctors)
+router.get('/users', adminAuth, async (req, res) => {
+  try {
+    const users = await User.find({
+      $or: [
+        { role: 'Patient' },
+        { role: 'Doctor', isApprovedByAdmin: true }
+      ]
+    }).select('firebaseUid name email role isApprovedByAdmin createdAt').sort({ createdAt: -1 });
+
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Fetch all users error:', err);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
+// ─── DELETE /api/admin/users/:firebaseUid ─────────────────────
+// Deletes any user
+router.delete('/users/:firebaseUid', adminAuth, async (req, res) => {
+  try {
+    const user = await User.findOneAndDelete({ firebaseUid: req.params.firebaseUid });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    res.json({ success: true, message: `${user.name} has been deleted.` });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    res.status(500).json({ success: false, message: 'Server error.' });
+  }
+});
+
 module.exports = router;
