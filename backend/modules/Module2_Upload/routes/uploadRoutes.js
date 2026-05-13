@@ -6,6 +6,7 @@ const fs = require('fs');
 const dicomParser = require('dicom-parser');
 const Scan = require('../../../models/Scan');
 const User = require('../../Module1_Auth/models/User');
+const { encryptFile } = require('../../../utils/cryptoUtil');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../../../uploads');
@@ -29,91 +30,127 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-router.post('/upload', upload.single('scanFile'), async (req, res) => {
+router.post('/upload', upload.array('scans', 10), async (req, res) => {
   try {
     const { firebaseUid } = req.body;
     
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded.' });
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: 'No files uploaded.' });
     }
 
     if (!firebaseUid) {
-      // Clean up the file if no doctor info
-      fs.unlinkSync(req.file.path);
+      // Clean up files if no doctor info
+      req.files.forEach(f => fs.unlinkSync(f.path));
       return res.status(400).json({ success: false, message: 'Doctor ID (firebaseUid) is required.' });
     }
 
     const doctor = await User.findOne({ firebaseUid });
     if (!doctor) {
-      fs.unlinkSync(req.file.path);
+      req.files.forEach(f => fs.unlinkSync(f.path));
       return res.status(404).json({ success: false, message: 'Doctor profile not found.' });
     }
 
-    let fileType = 'NIfTI';
-    let metadata = {
+    let processedFiles = [];
+    let rootMetadata = {
       patientId: null,
       patientName: null,
       studyDate: null,
-      modality: null,
       bodyPart: null
     };
 
-    if (req.file.originalname.toLowerCase().endsWith('.dcm')) {
-      fileType = 'DICOM';
-      try {
-        const buffer = fs.readFileSync(req.file.path);
-        const dataSet = dicomParser.parseDicom(buffer);
+    for (const file of req.files) {
+      const originalNameLower = file.originalname.toLowerCase();
+      let fileType = originalNameLower.endsWith('.dcm') ? 'DICOM' : 'NIfTI';
+      let modality = 'Unknown';
 
-        // Smart Guard: Body Part Validation
-        const bodyPart = dataSet.string('x00180015');
-        if (bodyPart) {
-          const bpUpper = bodyPart.toUpperCase().trim();
-          if (bpUpper !== 'BRAIN' && bpUpper !== 'HEAD') {
-            fs.unlinkSync(req.file.path);
-            return res.status(400).json({ 
-              success: false, 
-              message: `Upload Rejected: Mind Modeler 3D only accepts Brain MRIs. Detected: ${bodyPart}` 
-            });
+      if (fileType === 'DICOM') {
+        try {
+          const buffer = fs.readFileSync(file.path);
+          const dataSet = dicomParser.parseDicom(buffer);
+
+          // Body Part Validation (Smart Guard)
+          const bodyPart = dataSet.string('x00180015');
+          if (bodyPart) {
+            const bpUpper = bodyPart.toUpperCase().trim();
+            if (bpUpper !== 'BRAIN' && bpUpper !== 'HEAD') {
+              // If any file in batch is not brain, we reject the whole batch for safety or just this file?
+              // Standard instruction says "immediately delete the saved file and return 400".
+              // For batch, if one is wrong, we should probably reject the whole batch to be safe.
+              req.files.forEach(f => { if(fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+              return res.status(400).json({ 
+                success: false, 
+                message: `Upload Rejected: Mind Modeler 3D only accepts Brain MRIs. Detected: ${bodyPart} in file ${file.originalname}` 
+              });
+            }
           }
+
+          // Extract metadata for root (take from first valid DICOM)
+          if (!rootMetadata.patientName) {
+            rootMetadata.patientId = dataSet.string('x00100020');
+            rootMetadata.patientName = dataSet.string('x00100010');
+            rootMetadata.studyDate = dataSet.string('x00080020');
+            rootMetadata.bodyPart = bodyPart;
+          }
+
+          // Detect Modality for this file
+          // SeriesDescription (0008,103e) or Modality (0008,0060)
+          modality = dataSet.string('x0008103e') || dataSet.string('x00080060') || 'DICOM Scan';
+
+        } catch (err) {
+          console.error(`Error parsing DICOM ${file.originalname}:`, err);
         }
-
-        // Metadata Extraction
-        metadata.patientId = dataSet.string('x00100020');
-        metadata.patientName = dataSet.string('x00100010');
-        metadata.studyDate = dataSet.string('x00080020');
-        metadata.modality = dataSet.string('x00080060');
-        metadata.bodyPart = bodyPart;
-
-      } catch (err) {
-        console.error('DICOM parsing error:', err);
-        // If it's a DICOM but parsing fails, we could potentially reject it,
-        // but following instructions to assume valid if tag missing or just bypass for NIfTI.
-        // For DICOM parsing failure, we'll log it and continue with empty metadata.
+      } else {
+        // NIfTI Modality Detection from filename
+        if (originalNameLower.includes('t1ce')) modality = 'T1ce';
+        else if (originalNameLower.includes('t1')) modality = 'T1';
+        else if (originalNameLower.includes('t2')) modality = 'T2';
+        else if (originalNameLower.includes('flair')) modality = 'FLAIR';
+        else if (originalNameLower.includes('seg')) modality = 'Segmentation Mask';
+        else modality = 'Unknown NIfTI';
       }
+
+      // Apply AES-256 Encryption
+      let encryptionIV;
+      try {
+        encryptionIV = encryptFile(file.path);
+      } catch (err) {
+        console.error(`Encryption error for ${file.originalname}:`, err);
+        // Clean up and fail if encryption fails (Security Compliance)
+        req.files.forEach(f => { if(fs.existsSync(f.path)) fs.unlinkSync(f.path); });
+        return res.status(500).json({ success: false, message: 'Security layer failure: Encryption failed.' });
+      }
+
+      processedFiles.push({
+        fileName: file.filename,
+        originalName: file.originalname,
+        modality: modality,
+        path: file.path,
+        fileType: fileType,
+        encryptionIV: encryptionIV
+      });
     }
 
     const newScan = new Scan({
       doctorId: doctor._id,
-      fileName: req.file.originalname,
-      filePath: req.file.path,
-      fileType: fileType,
+      files: processedFiles,
       status: 'Uploaded',
-      ...metadata
+      ...rootMetadata
     });
 
     await newScan.save();
 
     res.status(201).json({
       success: true,
-      message: 'File saved to server and database!',
+      message: 'Batch uploaded and grouped successfully!',
       scan: newScan
     });
+
   } catch (error) {
-    console.error('Upload error:', error);
-    if (req.file) {
-       fs.unlinkSync(req.file.path);
+    console.error('Batch upload error:', error);
+    if (req.files) {
+      req.files.forEach(f => { if(fs.existsSync(f.path)) fs.unlinkSync(f.path); });
     }
-    res.status(500).json({ success: false, message: 'Server error during upload.' });
+    res.status(500).json({ success: false, message: 'Server error during batch upload.' });
   }
 });
 

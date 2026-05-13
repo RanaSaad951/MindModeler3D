@@ -328,8 +328,16 @@ const DoctorDashboard = () => {
                     <tr key={scan._id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
                       <td className="px-6 py-4 text-sm font-mono text-cyan-400">{scan._id.slice(-6).toUpperCase()}</td>
                       <td className="px-6 py-4 text-sm text-white font-medium">{scan.patientName || 'Anonymous'}</td>
-                      <td className="px-6 py-4 text-sm text-slate-400 font-medium">{scan.modality || (scan.fileType === 'NIfTI' ? 'NIfTI' : 'Unknown')}</td>
-                      <td className="px-6 py-4 text-sm text-slate-400 truncate max-w-[150px]" title={scan.fileName}>{scan.fileName}</td>
+                      <td className="px-6 py-4 text-sm text-slate-400 font-medium">
+                        {scan.files && scan.files.length > 0 
+                          ? [...new Set(scan.files.map(f => f.modality))].join(', ')
+                          : (scan.modality || 'Unknown')}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-400 truncate max-w-[180px]" title={scan.files?.[0]?.originalName || scan.fileName}>
+                        {scan.files && scan.files.length > 0 
+                          ? `${scan.files[0].originalName}${scan.files.length > 1 ? ` (+${scan.files.length - 1} more)` : ''}`
+                          : (scan.fileName || 'Unknown File')}
+                      </td>
                       <td className="px-6 py-4 text-sm text-slate-400">{new Date(scan.uploadDate).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold

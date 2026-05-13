@@ -6,19 +6,17 @@ const scanSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  fileName: {
-    type: String,
-    required: true,
-  },
-  filePath: {
-    type: String,
-    required: true,
-  },
-  fileType: {
-    type: String,
-    enum: ['DICOM', 'NIfTI'],
-    required: true,
-  },
+  files: [{
+    fileName: String,      // unique name on server
+    originalName: String,  // name from user
+    modality: String,      // T1, T2, etc.
+    path: String,          // full path
+    encryptionIV: { type: String, required: true },
+    fileType: {            // DICOM or NIfTI
+      type: String,
+      enum: ['DICOM', 'NIfTI']
+    }
+  }],
   status: {
     type: String,
     default: 'Uploaded',
@@ -26,7 +24,6 @@ const scanSchema = new mongoose.Schema({
   patientId: String,
   patientName: String,
   studyDate: String,
-  modality: String,
   bodyPart: String,
   uploadDate: {
     type: Date,
