@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { storage } from '../../../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { HiOutlineUserCircle } from 'react-icons/hi';
 import { FiLock } from 'react-icons/fi';
 
@@ -50,7 +48,7 @@ const DoctorSettings = () => {
   useEffect(() => {
     if (mongoProfile) {
       setForm({ contactNumber: mongoProfile.contactNumber || '', city: mongoProfile.city || '' });
-      setPicPreview(mongoProfile.profilePicURL || '');
+      setPicPreview(mongoProfile.profilePic ? `http://localhost:5000/${mongoProfile.profilePic}` : mongoProfile.profilePicURL || '');
     }
   }, [mongoProfile]);
 
@@ -71,25 +69,21 @@ const DoctorSettings = () => {
     setFormError('');
     setLoading(true);
     try {
-      let profilePicURL = mongoProfile?.profilePicURL || '';
+      // ── Prepare FormData for Multer ───────────────────────────────────
+      const formData = new FormData();
+      formData.append('firebaseUid', firebaseUser.uid);
+      formData.append('contactNumber', form.contactNumber || '');
+      formData.append('city', form.city || '');
+      
       if (picFile) {
         setUploadProgress('Uploading photo…');
-        const ext = picFile.name.split('.').pop();
-        const storageRef = ref(storage, `user_profiles/${firebaseUser.uid}/profile.${ext}`);
-        const snap = await uploadBytes(storageRef, picFile);
-        profilePicURL = await getDownloadURL(snap.ref);
+        formData.append('profilePic', picFile);
       }
 
       setUploadProgress('Saving changes…');
       const res = await fetch(`${BACKEND_URL}/api/users/update-doctor-profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firebaseUid: firebaseUser.uid,
-          profilePicURL,
-          contactNumber: form.contactNumber || undefined,
-          city: form.city || undefined,
-        }),
+        body: formData, // fetch automatically sets Content-Type to multipart/form-data
       });
 
       const data = await res.json();

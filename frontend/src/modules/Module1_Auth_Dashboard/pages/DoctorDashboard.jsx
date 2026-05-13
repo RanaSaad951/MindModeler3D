@@ -32,6 +32,7 @@ const DoctorDashboard = () => {
   const [activeNav, setActiveNav] = useState('Dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileData, setProfileData] = useState(null);
+  const [scans, setScans] = useState([]);
 
   const doctorName = mongoProfile?.name || firebaseUser?.displayName || 'Doctor';
   const isApproved = profileData?.isApprovedByAdmin ?? false;
@@ -39,6 +40,15 @@ const DoctorDashboard = () => {
   useEffect(() => {
     if (firebaseUser?.uid) {
       fetchMongoProfile(firebaseUser.uid).then((p) => { if (p) setProfileData(p); });
+      
+      fetch(`http://localhost:5000/api/scans/doctor/${firebaseUser.uid}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setScans(data.scans);
+          }
+        })
+        .catch(err => console.error('Error fetching scans:', err));
     }
   }, [firebaseUser, fetchMongoProfile]);
 
@@ -103,8 +113,9 @@ const DoctorDashboard = () => {
           <div className="border-t border-white/[0.06] pt-4 mb-3" />
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center overflow-hidden">
-              {profileData?.profilePicURL
-                ? <img src={profileData.profilePicURL} alt="" className="w-full h-full object-cover" />
+
+              {profileData?.profilePic || profileData?.profilePicURL
+                ? <img src={profileData.profilePic ? `http://localhost:5000/${profileData.profilePic}` : profileData.profilePicURL} alt="" className="w-full h-full object-cover" />
                 : <FiUser className="w-4 h-4 text-cyan-400" />}
             </div>
             <div className="overflow-hidden">
@@ -142,8 +153,8 @@ const DoctorDashboard = () => {
                 {!isApproved && <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400 animate-pulse" />}
               </button>
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border-2 border-cyan-500/30 flex items-center justify-center overflow-hidden">
-                {profileData?.profilePicURL
-                  ? <img src={profileData.profilePicURL} alt="" className="w-full h-full object-cover" />
+                {profileData?.profilePic || profileData?.profilePicURL
+                  ? <img src={profileData.profilePic ? `http://localhost:5000/${profileData.profilePic}` : profileData.profilePicURL} alt="" className="w-full h-full object-cover" />
                   : <HiOutlineUserCircle className="w-6 h-6 text-cyan-400" />}
               </div>
             </div>
@@ -205,8 +216,8 @@ const DoctorDashboard = () => {
               <div className="flex flex-col lg:flex-row gap-8 items-start">
                 <div className="flex flex-col items-center gap-3 shrink-0">
                   <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-blue-600/5 border-2 border-cyan-500/20 flex items-center justify-center overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.08)]">
-                    {profileData?.profilePicURL
-                      ? <img src={profileData.profilePicURL} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
+                    {profileData?.profilePic || profileData?.profilePicURL
+                      ? <img src={profileData.profilePic ? `http://localhost:5000/${profileData.profilePic}` : profileData.profilePicURL} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
                       : <HiOutlineUserCircle className="w-16 h-16 text-cyan-400/40" />}
                   </div>
                   <div className="text-center">
@@ -233,7 +244,7 @@ const DoctorDashboard = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             {[
               { id: 'stat-patients', label: 'Patients Assigned', value: '0', icon: FiUsers, color: 'from-cyan-500/15 to-cyan-600/5', border: 'border-cyan-500/20', text: 'text-cyan-400', hover: 'hover:border-cyan-500/30' },
-              { id: 'stat-scans',    label: 'MRI Scans Pending', value: '0', icon: FiUploadCloud, color: 'from-amber-500/15 to-yellow-600/5', border: 'border-amber-500/20', text: 'text-amber-400', hover: 'hover:border-amber-500/30' },
+              { id: 'stat-scans',    label: 'MRI Scans Uploaded', value: scans.length.toString(), icon: FiUploadCloud, color: 'from-amber-500/15 to-yellow-600/5', border: 'border-amber-500/20', text: 'text-amber-400', hover: 'hover:border-amber-500/30' },
               { id: 'stat-reports',  label: 'Reports Generated', value: '0', icon: FiFileText, color: 'from-violet-500/15 to-purple-600/5', border: 'border-violet-500/20', text: 'text-violet-400', hover: 'hover:border-violet-500/30' },
             ].map((s) => (
               <div key={s.id} id={s.id}
@@ -297,8 +308,8 @@ const DoctorDashboard = () => {
                   <FiUsers className="w-4 h-4 text-cyan-400" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">Assigned Patients</h3>
-                  <p className="text-xs text-slate-500">Recent patient activity</p>
+                  <h3 className="text-base font-bold text-white">Recent Scans</h3>
+                  <p className="text-xs text-slate-500">Uploaded MRI files</p>
                 </div>
               </div>
               <button className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 transition-colors">View All →</button>
@@ -307,24 +318,23 @@ const DoctorDashboard = () => {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-white/[0.06]">
-                    {['Patient ID', 'Full Name', 'Last Scan Date', 'AI Status', 'Action'].map((h) => (
+                    {['Scan ID', 'Patient Name', 'Modality', 'File Name', 'Upload Date', 'Status', 'Action'].map((h) => (
                       <th key={h} className="px-6 py-3.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { id: 'MM-P-0001', name: 'Ali Raza', date: '2026-05-06', status: 'Analyzed' },
-                    { id: 'MM-P-0002', name: 'Sara Khan', date: '2026-05-05', status: 'Pending' },
-                  ].map((p) => (
-                    <tr key={p.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
-                      <td className="px-6 py-4 text-sm font-mono text-cyan-400">{p.id}</td>
-                      <td className="px-6 py-4 text-sm text-white font-medium">{p.name}</td>
-                      <td className="px-6 py-4 text-sm text-slate-400">{p.date}</td>
+                  {scans.length > 0 ? scans.map((scan) => (
+                    <tr key={scan._id} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+                      <td className="px-6 py-4 text-sm font-mono text-cyan-400">{scan._id.slice(-6).toUpperCase()}</td>
+                      <td className="px-6 py-4 text-sm text-white font-medium">{scan.patientName || 'Anonymous'}</td>
+                      <td className="px-6 py-4 text-sm text-slate-400 font-medium">{scan.modality || (scan.fileType === 'NIfTI' ? 'NIfTI' : 'Unknown')}</td>
+                      <td className="px-6 py-4 text-sm text-slate-400 truncate max-w-[150px]" title={scan.fileName}>{scan.fileName}</td>
+                      <td className="px-6 py-4 text-sm text-slate-400">{new Date(scan.uploadDate).toLocaleDateString()}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
-                          ${p.status === 'Analyzed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                          {p.status}
+                          ${scan.status === 'Analyzed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                          {scan.status}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -334,7 +344,13 @@ const DoctorDashboard = () => {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan="7" className="px-6 py-8 text-center text-sm text-slate-500">
+                        No scans uploaded yet.
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>

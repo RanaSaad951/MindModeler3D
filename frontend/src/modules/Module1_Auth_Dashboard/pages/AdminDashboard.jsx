@@ -424,12 +424,16 @@ const AdminDashboard = () => {
                         {/* Name + Avatar */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-cyan-300"
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-cyan-300 overflow-hidden"
                               style={{
                                 background: 'linear-gradient(135deg,rgba(6,182,212,0.2),rgba(2,132,199,0.2))',
                                 border: '1px solid rgba(34,211,238,0.15)',
                               }}>
-                              {doc.name?.charAt(0).toUpperCase() || '?'}
+                              {doc.profilePic || doc.profilePicURL ? (
+                                <img src={doc.profilePic ? `${BACKEND_URL}/${doc.profilePic}` : doc.profilePicURL} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                doc.name?.charAt(0).toUpperCase() || '?'
+                              )}
                             </div>
                             <div>
                               <p className="font-semibold text-slate-200">Dr. {doc.name}</p>
@@ -545,12 +549,16 @@ const AdminDashboard = () => {
                         <tr key={user.firebaseUid} className="hover:bg-white/[0.02] transition-colors group">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-violet-300"
+                              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-bold text-violet-300 overflow-hidden"
                                 style={{
                                   background: 'linear-gradient(135deg,rgba(139,92,246,0.2),rgba(124,58,237,0.2))',
                                   border: '1px solid rgba(139,92,246,0.15)',
                                 }}>
-                                {user.name?.charAt(0).toUpperCase() || '?'}
+                                {user.profilePic || user.profilePicURL ? (
+                                  <img src={user.profilePic ? `${BACKEND_URL}/${user.profilePic}` : user.profilePicURL} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  user.name?.charAt(0).toUpperCase() || '?'
+                                )}
                               </div>
                               <div>
                                 <p className="font-semibold text-slate-200">{user.role === 'Doctor' ? `Dr. ${user.name}` : user.name}</p>

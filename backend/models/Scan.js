@@ -23,6 +23,11 @@ const scanSchema = new mongoose.Schema({
     type: String,
     default: 'Uploaded',
   },
+  patientId: String,
+  patientName: String,
+  studyDate: String,
+  modality: String,
+  bodyPart: String,
   uploadDate: {
     type: Date,
     default: Date.now,

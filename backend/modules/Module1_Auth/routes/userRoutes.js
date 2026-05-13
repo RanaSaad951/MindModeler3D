@@ -1,6 +1,65 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Ensure profiles upload directory exists
+const uploadDir = path.join(__dirname, '../../../uploads/profiles');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Multer storage config
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const ext = path.extname(file.originalname);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'profile-' + uniqueSuffix + ext);
+  }
+});
+
+// File filter for images only
+const fileFilter = (req, file, cb) => {
+  const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+  const ext = path.extname(file.originalname).toLowerCase();
+  const mimetype = file.mimetype.toLowerCase();
+
+  // Allow if extension matches OR if mimetype starts with 'image/'
+  if (allowedExtensions.includes(ext) || mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    // Debug log to see exactly what is being sent
+    console.log('Rejected File:', file.originalname, file.mimetype);
+    cb(new Error('Invalid file type. Only .jpg, .jpeg, and .png are allowed.'), false);
+  }
+};
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+// Wrapper to catch Multer errors (e.g. file filter or size limit)
+const handleUpload = (fieldName) => (req, res, next) => {
+  const uploadSingle = upload.single(fieldName);
+  uploadSingle(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      // Multer-specific error (e.g. file size)
+      return res.status(400).json({ success: false, message: `Upload error: ${err.message}` });
+    } else if (err) {
+      // Custom error (e.g. file filter)
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    next();
+  });
+};
+
 
 // ─── POST /api/users/register ─────────────────────────────────
 // Called by frontend AFTER Firebase signup succeeds
@@ -64,9 +123,10 @@ router.post('/register', async (req, res) => {
 // ─── PUT /api/users/complete-patient-profile ──────────────────
 // Completes a Patient's profile with CNIC, age, gender, etc.
 // Generates a unique sequential Patient ID (e.g. MM-P-0001)
-router.put('/complete-patient-profile', async (req, res) => {
+router.put('/complete-patient-profile', handleUpload('profilePic'), async (req, res) => {
   try {
-    const { firebaseUid, cnic, age, gender, contactNumber, city, profilePicURL } = req.body;
+    const { firebaseUid, cnic, age, gender, contactNumber, city } = req.body;
+    const profilePic = req.file ? `uploads/profiles/${req.file.filename}` : '';
 
     if (!firebaseUid) {
       return res.status(400).json({ success: false, message: 'Firebase UID is required.' });
@@ -104,7 +164,7 @@ router.put('/complete-patient-profile', async (req, res) => {
     user.gender = gender;
     user.contactNumber = contactNumber;
     user.city = city;
-    user.profilePicURL = profilePicURL || '';
+    if (profilePic) user.profilePic = profilePic;
     user.uniquePatientId = uniquePatientId;
     user.isProfileComplete = true;
 
@@ -128,9 +188,10 @@ router.put('/complete-patient-profile', async (req, res) => {
 // ─── PUT /api/users/update-patient-profile ────────────────────
 // Allows patients to modify ONLY: profilePicURL, age, contactNumber, city
 // CNIC and name are permanently locked after initial registration.
-router.put('/update-patient-profile', async (req, res) => {
+router.put('/update-patient-profile', handleUpload('profilePic'), async (req, res) => {
   try {
-    const { firebaseUid, profilePicURL, age, contactNumber, city, cnic, name } = req.body;
+    const { firebaseUid, age, contactNumber, city, cnic, name } = req.body;
+    const profilePic = req.file ? `uploads/profiles/${req.file.filename}` : undefined;
 
     if (!firebaseUid) {
       return res.status(400).json({ success: false, message: 'Firebase UID is required.' });
@@ -165,7 +226,7 @@ router.put('/update-patient-profile', async (req, res) => {
     }
     if (contactNumber !== undefined) user.contactNumber = contactNumber.trim();
     if (city !== undefined)          user.city = city.trim();
-    if (profilePicURL !== undefined) user.profilePicURL = profilePicURL;
+    if (profilePic !== undefined)    user.profilePic = profilePic;
 
     await user.save();
 
@@ -187,9 +248,10 @@ router.put('/update-patient-profile', async (req, res) => {
 // ─── PUT /api/users/complete-doctor-profile ───────────────────
 // Completes a Doctor's profile: specialization, medicalLicense, contact, city
 // Generates uniqueDoctorId (MM-D-0001) and sets isProfileComplete = true
-router.put('/complete-doctor-profile', async (req, res) => {
+router.put('/complete-doctor-profile', handleUpload('profilePic'), async (req, res) => {
   try {
-    const { firebaseUid, specialization, contactNumber, city, medicalLicenseUrl, profilePicURL } = req.body;
+    const { firebaseUid, specialization, contactNumber, city, medicalLicenseUrl } = req.body;
+    const profilePic = req.file ? `uploads/profiles/${req.file.filename}` : '';
 
     if (!firebaseUid) {
       return res.status(400).json({ success: false, message: 'Firebase UID is required.' });
@@ -221,7 +283,7 @@ router.put('/complete-doctor-profile', async (req, res) => {
     user.contactNumber     = contactNumber.trim();
     user.city              = city.trim();
     user.medicalLicenseUrl = medicalLicenseUrl || '';
-    user.profilePicURL     = profilePicURL     || '';
+    if (profilePic) user.profilePic = profilePic;
     user.uniqueDoctorId    = uniqueDoctorId;
     user.isProfileComplete = true;
 
@@ -241,9 +303,10 @@ router.put('/complete-doctor-profile', async (req, res) => {
 // ─── PUT /api/users/update-doctor-profile ─────────────────────
 // Allows doctors to modify ONLY: profilePicURL, contactNumber, city
 // Name, PMDC number, and Specialization are permanently locked.
-router.put('/update-doctor-profile', async (req, res) => {
+router.put('/update-doctor-profile', handleUpload('profilePic'), async (req, res) => {
   try {
-    const { firebaseUid, profilePicURL, contactNumber, city, name, pmdcNumber, specialization } = req.body;
+    const { firebaseUid, contactNumber, city, name, pmdcNumber, specialization } = req.body;
+    const profilePic = req.file ? `uploads/profiles/${req.file.filename}` : undefined;
 
     if (!firebaseUid) {
       return res.status(400).json({ success: false, message: 'Firebase UID is required.' });
@@ -264,7 +327,7 @@ router.put('/update-doctor-profile', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please complete your profile first.' });
     }
 
-    if (profilePicURL !== undefined) user.profilePicURL = profilePicURL;
+    if (profilePic !== undefined)    user.profilePic = profilePic;
     if (contactNumber !== undefined) user.contactNumber = contactNumber.trim();
     if (city !== undefined)          user.city = city.trim();
 

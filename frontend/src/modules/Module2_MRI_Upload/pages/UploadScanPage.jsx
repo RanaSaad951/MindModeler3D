@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiUploadCloud, FiFile, FiFolderPlus, FiX, FiUpload } from 'react-icons/fi';
+import { FiUploadCloud, FiFile, FiFolderPlus, FiX, FiUpload, FiActivity } from 'react-icons/fi';
 import { useAuth } from '../../../context/AuthContext';
 import { HiOutlineExclamationCircle } from 'react-icons/hi';
 
@@ -9,6 +9,10 @@ const UploadScanPage = () => {
   const [uploadError, setUploadError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [scanLogs, setScanLogs] = useState([]);
+  const [scanMetadata, setScanMetadata] = useState(null);
 
   const fileInputRef = useRef(null);
   const allowedExtensions = ['.dcm', '.nii', '.nii.gz'];
@@ -26,6 +30,28 @@ const UploadScanPage = () => {
       }
     };
   }, [uploadError]);
+
+  useEffect(() => {
+    if (!isScanning) return;
+
+    let currentProgress = 0;
+    const interval = setInterval(() => {
+      currentProgress += 2;
+      if (currentProgress > 100) currentProgress = 100;
+      setScanProgress(currentProgress);
+
+      if (currentProgress === 10) setScanLogs(prev => [...prev, `[System] Initializing ${scanMetadata?.fileType || 'File'} parser...`]);
+      if (currentProgress === 30) setScanLogs(prev => [...prev, `[Scan] Header Extracted: ${scanMetadata?.patientName || 'Anonymous'}`]);
+      if (currentProgress === 60) setScanLogs(prev => [...prev, `[Validation] Modality: ${scanMetadata?.modality || 'MRI'} detected`]);
+      if (currentProgress === 85) setScanLogs(prev => [...prev, '[Security] HIPAA compliance check: Passed']);
+      if (currentProgress === 100) {
+        setScanLogs(prev => [...prev, `[Success] ${scanMetadata?.fileType || 'Scan'} safely stored. Ready for 3D Pipeline.`]);
+        clearInterval(interval);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isScanning]);
 
   const validateFile = (file) => {
     if (!file) return;
@@ -100,8 +126,8 @@ const UploadScanPage = () => {
       const data = await response.json();
       
       if (data.success) {
-        alert("File saved to server and database!");
-        clearSelection(e);
+        setScanMetadata(data.scan);
+        setIsScanning(true);
       } else {
         setUploadError(data.message || 'Upload failed');
       }
@@ -131,8 +157,52 @@ const UploadScanPage = () => {
         </div>
       )}
 
-      {/* Upload Zone */}
-      <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.10] rounded-3xl p-8 lg:p-12 relative overflow-hidden group">
+      {/* Upload Zone OR Scanning Terminal */}
+      {isScanning ? (
+        <div className="bg-[#050505] border border-cyan-500/30 rounded-3xl p-8 lg:p-12 relative overflow-hidden shadow-[0_0_50px_rgba(6,182,212,0.15)] font-mono">
+          <h3 className="text-xl font-bold text-cyan-400 mb-6 flex items-center gap-3">
+            <FiActivity className="w-6 h-6 animate-pulse" />
+            AI Preprocessing Simulation
+          </h3>
+
+          <div className="bg-black/50 border border-white/[0.05] rounded-xl p-6 h-64 overflow-y-auto flex flex-col gap-2 mb-8">
+            {scanLogs.map((log, index) => (
+              <div key={index} className="text-sm text-emerald-400 animate-slide-up">
+                <span className="text-slate-500 mr-2">{'>'}</span> {log}
+              </div>
+            ))}
+            {scanProgress < 100 && (
+              <div className="text-sm text-cyan-400/50 animate-pulse mt-2">
+                <span className="text-slate-500 mr-2">{'>'}</span> Processing...
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 mb-8">
+            <div className="flex justify-between text-sm">
+              <span className="text-slate-400">System Progress</span>
+              <span className="text-cyan-400 font-bold">{scanProgress}%</span>
+            </div>
+            <div className="h-2 w-full bg-white/[0.05] rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)] transition-all duration-300"
+                style={{ width: `${scanProgress}%` }}
+              />
+            </div>
+          </div>
+
+          {scanProgress === 100 && (
+            <div className="flex justify-center animate-fade-in">
+              <button 
+                onClick={() => document.getElementById('nav-dashboard')?.click()}
+                className="px-8 py-3 rounded-full text-sm font-semibold text-[#050505] bg-gradient-to-r from-cyan-400 to-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.3)] hover:scale-105 transition-all duration-300">
+                Return to Dashboard
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bg-white/[0.03] backdrop-blur-md border border-white/[0.10] rounded-3xl p-8 lg:p-12 relative overflow-hidden group">
         {/* Background glow effects */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-32 bg-cyan-500/10 blur-[80px] rounded-full pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-64 h-64 bg-blue-600/10 blur-[100px] rounded-full pointer-events-none" />
@@ -205,6 +275,7 @@ const UploadScanPage = () => {
           )}
         </div>
       </div>
+      )}
       
       {/* Informational Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">

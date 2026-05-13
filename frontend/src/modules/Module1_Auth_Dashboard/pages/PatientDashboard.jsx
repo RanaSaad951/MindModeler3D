@@ -135,8 +135,8 @@ const PatientDashboard = () => {
           <div className="border-t border-white/[0.06] pt-4 mb-3" />
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/[0.03] border border-white/[0.06] mb-3">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/30 flex items-center justify-center overflow-hidden">
-              {profileData?.profilePicURL
-                ? <img src={profileData.profilePicURL} alt="" className="w-full h-full object-cover" />
+              {profileData?.profilePic || profileData?.profilePicURL
+                ? <img src={profileData.profilePic ? `http://localhost:5000/${profileData.profilePic}` : profileData.profilePicURL} alt="" className="w-full h-full object-cover" />
                 : <FiUser className="w-4 h-4 text-cyan-400" />}
             </div>
             <div className="overflow-hidden">
@@ -182,8 +182,8 @@ const PatientDashboard = () => {
               <div id="user-avatar"
                 className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-purple-600/20 border-2 border-cyan-500/30 flex items-center justify-center cursor-pointer
                   hover:border-cyan-400/60 transition-all duration-200 overflow-hidden">
-                {profileData?.profilePicURL
-                  ? <img src={profileData.profilePicURL} alt="" className="w-full h-full object-cover" />
+                {profileData?.profilePic || profileData?.profilePicURL
+                  ? <img src={profileData.profilePic ? `http://localhost:5000/${profileData.profilePic}` : profileData.profilePicURL} alt="" className="w-full h-full object-cover" />
                   : <HiOutlineUserCircle className="w-6 h-6 text-cyan-400" />}
               </div>
             </div>
@@ -227,8 +227,8 @@ const PatientDashboard = () => {
                   <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-blue-600/5
                     border-2 border-cyan-500/20 flex items-center justify-center overflow-hidden
                     shadow-[0_0_30px_rgba(6,182,212,0.08)]">
-                    {profileData?.profilePicURL ? (
-                      <img src={profileData.profilePicURL} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
+                    {profileData?.profilePic || profileData?.profilePicURL ? (
+                      <img src={profileData.profilePic ? `http://localhost:5000/${profileData.profilePic}` : profileData.profilePicURL} alt="Profile" className="w-full h-full object-cover rounded-2xl" />
                     ) : (
                       <HiOutlineUserCircle className="w-16 h-16 text-cyan-400/40" />
                     )}

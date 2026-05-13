@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { storage } from '../../../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /* ── Inline SVG icons ──────────────────────────────────────── */
 const IconUser = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
@@ -15,13 +13,6 @@ const IconCity = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" 
 const IconGender = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
 const IconCamera = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 
-/* ── Upload image to Firebase Storage, return public URL ───── */
-const uploadProfilePic = async (file, uid) => {
-  const ext = file.name.split('.').pop();
-  const storageRef = ref(storage, `user_profiles/${uid}/profile.${ext}`);
-  const snapshot = await uploadBytes(storageRef, file);
-  return await getDownloadURL(snapshot.ref);
-};
 
 const CompletePatientProfile = () => {
   const { firebaseUser, fetchMongoProfile, BACKEND_URL } = useAuth();
@@ -69,27 +60,25 @@ const CompletePatientProfile = () => {
 
     setLoading(true);
     try {
-      // ── Step 1: Upload profile picture to Firebase Storage (if chosen) ──
-      let profilePicURL = '';
+      // ── Prepare FormData for Multer ───────────────────────────────────
+      const formData = new FormData();
+      formData.append('firebaseUid', firebaseUser.uid);
+      formData.append('cnic', form.cnic.trim());
+      formData.append('age', Number(form.age));
+      formData.append('gender', form.gender);
+      formData.append('contactNumber', form.contactNumber.trim());
+      formData.append('city', form.city.trim());
+
       if (picFile) {
         setUploadProgress('Uploading photo…');
-        profilePicURL = await uploadProfilePic(picFile, firebaseUser.uid);
+        formData.append('profilePic', picFile);
       }
 
       // ── Step 2: Save profile data to MongoDB ────────────────────────────
       setUploadProgress('Saving profile…');
       const res = await fetch(`${BACKEND_URL}/api/users/complete-patient-profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firebaseUid: firebaseUser.uid,
-          cnic: form.cnic.trim(),
-          age: Number(form.age),
-          gender: form.gender,
-          contactNumber: form.contactNumber.trim(),
-          city: form.city.trim(),
-          profilePicURL,
-        }),
+        body: formData, // fetch automatically sets Content-Type to multipart/form-data
       });
 
       const data = await res.json();

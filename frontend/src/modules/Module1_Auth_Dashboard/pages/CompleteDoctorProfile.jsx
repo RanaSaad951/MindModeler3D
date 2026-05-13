@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { storage } from '../../../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 /* ── SVG Icons ─────────────────────────────────────────────── */
 const IconUser = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>;
@@ -50,27 +48,22 @@ const CompleteDoctorProfile = () => {
 
     setLoading(true);
     try {
-      // ── Profile photo upload (optional — skipped if no file selected) ──
-      let profilePicURL = '';
+      // ── Prepare FormData for Multer ───────────────────────────────────
+      const formData = new FormData();
+      formData.append('firebaseUid', firebaseUser.uid);
+      formData.append('specialization', form.specialization);
+      formData.append('contactNumber', form.contactNumber.trim());
+      formData.append('city', form.city.trim());
+      formData.append('medicalLicenseUrl', '');
+      
       if (picFile) {
-        const ext = picFile.name.split('.').pop();
-        const storageRef = ref(storage, `user_profiles/${firebaseUser.uid}/profile.${ext}`);
-        const snapshot = await uploadBytes(storageRef, picFile);
-        profilePicURL = await getDownloadURL(snapshot.ref);
+        formData.append('profilePic', picFile);
       }
-
+      
       // ── Submit to backend ────────────────────────────────────────────
       const res = await fetch(`${BACKEND_URL}/api/users/complete-doctor-profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firebaseUid:      firebaseUser.uid,
-          specialization:   form.specialization,
-          contactNumber:    form.contactNumber.trim(),
-          city:             form.city.trim(),
-          profilePicURL,
-          medicalLicenseUrl: '', // Bypassed — verified via PMDC number instead
-        }),
+        body: formData, // fetch automatically sets Content-Type to multipart/form-data
       });
 
       const data = await res.json();

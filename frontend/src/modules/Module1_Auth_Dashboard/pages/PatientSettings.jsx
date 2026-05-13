@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../components/Toast';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { storage } from '../../../firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { HiOutlineUserCircle } from 'react-icons/hi';
 import { FiLock } from 'react-icons/fi';
 
@@ -14,13 +12,6 @@ const IconCalendar = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 
 const IconPhone = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>;
 const IconCity = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
 
-/* ── Upload helper ─────────────────────────────────────────── */
-const uploadProfilePic = async (file, uid) => {
-  const ext = file.name.split('.').pop();
-  const storageRef = ref(storage, `user_profiles/${uid}/profile.${ext}`);
-  const snapshot = await uploadBytes(storageRef, file);
-  return await getDownloadURL(snapshot.ref);
-};
 
 /* ── Read-only field ───────────────────────────────────────── */
 const LockedField = ({ label, value, icon: Icon }) => (
@@ -72,7 +63,7 @@ const PatientSettings = () => {
         contactNumber: mongoProfile.contactNumber     || '',
         city:          mongoProfile.city              || '',
       });
-      setPicPreview(mongoProfile.profilePicURL || '');
+      setPicPreview(mongoProfile.profilePic ? `http://localhost:5000/${mongoProfile.profilePic}` : mongoProfile.profilePicURL || '');
     }
   }, [mongoProfile]);
 
@@ -102,24 +93,22 @@ const PatientSettings = () => {
 
     setLoading(true);
     try {
-      let profilePicURL = mongoProfile?.profilePicURL || '';
+      // ── Prepare FormData for Multer ───────────────────────────────────
+      const formData = new FormData();
+      formData.append('firebaseUid', firebaseUser.uid);
+      formData.append('age', form.age ? Number(form.age) : '');
+      formData.append('contactNumber', form.contactNumber || '');
+      formData.append('city', form.city || '');
 
       if (picFile) {
         setUploadProgress('Uploading photo…');
-        profilePicURL = await uploadProfilePic(picFile, firebaseUser.uid);
+        formData.append('profilePic', picFile);
       }
 
       setUploadProgress('Saving changes…');
       const res = await fetch(`${BACKEND_URL}/api/users/update-patient-profile`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firebaseUid: firebaseUser.uid,
-          profilePicURL,
-          age:           form.age           ? Number(form.age) : undefined,
-          contactNumber: form.contactNumber || undefined,
-          city:          form.city          || undefined,
-        }),
+        body: formData, // fetch automatically sets Content-Type to multipart/form-data
       });
 
       const data = await res.json();
