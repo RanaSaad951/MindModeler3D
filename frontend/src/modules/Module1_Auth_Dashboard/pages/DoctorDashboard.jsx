@@ -4,6 +4,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { FiHome, FiFolder, FiUploadCloud, FiSettings, FiLogOut, FiBell, FiUser, FiActivity, FiMenu, FiX, FiBox, FiUsers, FiFileText } from 'react-icons/fi';
 import { HiOutlineUserCircle, HiOutlineShieldCheck, HiOutlineExclamation } from 'react-icons/hi';
 import UploadScanPage from '../../Module2_MRI_Upload/pages/UploadScanPage';
+import NiftiPreviewModal from '../../Module2_MRI_Upload/components/NiftiPreviewModal';
 
 
 const navItems = [
@@ -33,6 +34,7 @@ const DoctorDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileData, setProfileData] = useState(null);
   const [scans, setScans] = useState([]);
+  const [selectedPreviewBatchId, setSelectedPreviewBatchId] = useState(null);
 
   const doctorName = mongoProfile?.name || firebaseUser?.displayName || 'Doctor';
   const isApproved = profileData?.isApprovedByAdmin ?? false;
@@ -345,7 +347,13 @@ const DoctorDashboard = () => {
                           {scan.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 flex items-center gap-2">
+                        <button 
+                          onClick={() => setSelectedPreviewBatchId(scan._id)}
+                          className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 border border-emerald-500/20 hover:border-emerald-400/40 px-3 py-1.5 rounded-full transition-all flex items-center gap-1"
+                        >
+                          👁️ Preview
+                        </button>
                         <button onClick={() => alert('Coming in Module 3')}
                           className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 border border-cyan-500/20 hover:border-cyan-400/40 px-3 py-1.5 rounded-full transition-all">
                           View Record
@@ -372,6 +380,13 @@ const DoctorDashboard = () => {
 
           {activeNav === 'Upload Scan' && (
             <UploadScanPage />
+          )}
+
+          {selectedPreviewBatchId && (
+            <NiftiPreviewModal 
+              batchId={selectedPreviewBatchId} 
+              onClose={() => setSelectedPreviewBatchId(null)} 
+            />
           )}
         </div>
       </main>

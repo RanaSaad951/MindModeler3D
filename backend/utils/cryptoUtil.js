@@ -36,4 +36,29 @@ const encryptFile = (filePath) => {
   }
 };
 
-module.exports = { encryptFile };
+/**
+ * Decrypts an encrypted file from disk and returns the decrypted buffer in-memory.
+ * @param {string} filePath - Absolute path to the encrypted file.
+ * @param {string} ivHex - The Initialization Vector (IV) in hex string format.
+ * @returns {Buffer} - Decrypted raw buffer.
+ */
+const decryptFileToBuffer = (filePath, ivHex) => {
+  try {
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`File not found at path: ${filePath}`);
+    }
+
+    const encryptedBuffer = fs.readFileSync(filePath);
+    const iv = Buffer.from(ivHex, 'hex');
+
+    const decipher = crypto.createDecipheriv(algorithm, SECRET_KEY, iv);
+    const decrypted = Buffer.concat([decipher.update(encryptedBuffer), decipher.final()]);
+
+    return decrypted;
+  } catch (error) {
+    console.error('[Decryption Error]:', error.message);
+    throw error;
+  }
+};
+
+module.exports = { encryptFile, decryptFileToBuffer };

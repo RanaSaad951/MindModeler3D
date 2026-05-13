@@ -6,7 +6,7 @@ const fs = require('fs');
 const dicomParser = require('dicom-parser');
 const Scan = require('../../../models/Scan');
 const User = require('../../Module1_Auth/models/User');
-const { encryptFile } = require('../../../utils/cryptoUtil');
+const { encryptFile, decryptFileToBuffer } = require('../../../utils/cryptoUtil');
 
 // Ensure uploads directory exists
 const uploadDir = path.join(__dirname, '../../../uploads');
@@ -166,6 +166,45 @@ router.get('/doctor/:firebaseUid', async (req, res) => {
   } catch (error) {
     console.error('Fetch scans error:', error);
     res.status(500).json({ success: false, message: 'Server error fetching scans.' });
+  }
+});
+
+// GET /api/scans/preview/:batchId - Decrypts and streams a NIfTI file for preview
+router.get('/preview/:batchId', async (req, res) => {
+  try {
+    const scan = await Scan.findById(req.params.batchId);
+    if (!scan) {
+      return res.status(404).json({ success: false, message: 'Scan batch not found.' });
+    }
+
+    // Prioritize T1 or T1ce for preview, skip Segmentation Masks
+    let targetFile = scan.files.find(f => 
+      f.fileType === 'NIfTI' && 
+      (f.modality === 'T1' || f.modality === 'T1ce')
+    );
+
+    // If no T1 found, pick the first NIfTI that isn't a Segmentation Mask
+    if (!targetFile) {
+      targetFile = scan.files.find(f => 
+        f.fileType === 'NIfTI' && 
+        f.modality !== 'Segmentation Mask'
+      );
+    }
+
+    if (!targetFile) {
+      return res.status(404).json({ success: false, message: 'No suitable NIfTI preview file found in this batch.' });
+    }
+
+    // Decrypt in-memory and stream
+    const decryptedBuffer = decryptFileToBuffer(targetFile.path, targetFile.encryptionIV);
+
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="preview_${targetFile.modality}.nii.gz"`);
+    res.send(decryptedBuffer);
+
+  } catch (error) {
+    console.error('Preview error:', error);
+    res.status(500).json({ success: false, message: 'Error generating preview stream.' });
   }
 });
 
