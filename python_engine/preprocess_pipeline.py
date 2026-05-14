@@ -3,6 +3,9 @@ import sys
 from config.db import get_pending_scans, update_scan_status
 from utils.crypto_utils import decrypt_nifti_to_stream
 from core.resizer import standardize_to_brats, verify_shape
+from core.enhancer import apply_n4_bias_correction, z_score_normalize
+from core.skull_stripper import remove_skull
+import core.augmenter  # SRS FR3.4: Augmentations available for training mode
 
 def run_pipeline():
     print("--- [Mind Modeler 3D] Preprocessing Pipeline Initialized ---")
@@ -39,11 +42,30 @@ def run_pipeline():
                 decrypted_stream = decrypt_nifti_to_stream(file_path, iv_hex)
                 print(f"  > [Security] Decryption Successful (In-Memory)")
                 
-                # 2. BraTS Standardization
+                # 2. BraTS Standardization (240x240x155)
                 standardized_data, affine = standardize_to_brats(decrypted_stream)
+
+                # 3. Skull Stripping (SRS FR3.3)
+                # BraTS data is pre-stripped — remove_skull bypasses automatically.
+                # For raw clinical NIfTI, Otsu-based extraction runs as fallback.
+                processed_data = remove_skull(standardized_data, dataset_type="BraTS")
+                print(f"  > [Processing] Skull Stripping verified / bypassed (BraTS protocol).")
+
+                # SRS FR3.4: Augmentations available in core.augmenter for training mode.
+                # Example: processed_data = core.augmenter.apply_horizontal_flip(processed_data)
+
+                # 4. Clinical Enhancement Layer
+                # Apply N4 Bias Correction (Skip for Segmentation Masks)
+                if modality != 'Segmentation Mask':
+                    processed_data = apply_n4_bias_correction(processed_data)
+                    print(f"  > [Enhancement] N4 Correction applied.")
+
+                # Apply Intensity Normalization
+                processed_data = z_score_normalize(processed_data)
+                print(f"  > [Enhancement] Z-Score Normalization applied.")
                 
-                if verify_shape(standardized_data):
-                    print(f"  > [Standardization] Success: Shape verified as {standardized_data.shape}")
+                if verify_shape(processed_data):
+                    print(f"  > [Standardization] Success: Shape verified as {processed_data.shape}")
                 else:
                     print(f"  > [Standardization] FAILED: Shape is {standardized_data.shape}")
                     continue

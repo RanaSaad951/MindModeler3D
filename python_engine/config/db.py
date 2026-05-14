@@ -17,11 +17,13 @@ def get_db_client():
 
 def get_pending_scans():
     client = get_db_client()
-    db = client.get_database() # Uses database name from URI or default
+    db = client.get_database()  # Uses database name from URI or default
     scans_collection = db['scans']
-    
-    # Fetch scans that are pending processing
-    return list(scans_collection.find({"status": "Pending"}))
+
+    # "Uploaded" = set by Node.js on fresh upload
+    # "Pending"  = set by reset_db.py when re-queuing failed/stuck scans
+    # Both statuses mean the scan is ready for preprocessing.
+    return list(scans_collection.find({"status": {"$in": ["Pending", "Uploaded"]}}))
 
 def update_scan_status(scan_id, status, metadata=None):
     client = get_db_client()
