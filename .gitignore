@@ -1,0 +1,7 @@
+node_modules/
+.env
+backend/serviceAccountKey.json
+backend/uploads/
+*.npy
+*.nii.gz
+python_engine/__pycache__/

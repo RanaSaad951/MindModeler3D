@@ -1,0 +1,19 @@
+# Mind Modeler 3D — Python Engine Dependencies
+# Install with: pip install -r requirements.txt
+
+# Database
+pymongo[srv]
+
+# Encryption / Security
+pycryptodome
+
+# MRI I/O & Processing
+nibabel
+SimpleITK
+numpy
+
+# Visualization (diagnostic utilities)
+matplotlib
+
+# Environment
+python-dotenv
